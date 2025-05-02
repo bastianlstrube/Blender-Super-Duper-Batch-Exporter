@@ -15,8 +15,9 @@ bl_info = {
 }
 from bpy.types import Scene, TOPBAR_MT_editor_menus, VIEW3D_MT_editor_menus
 from bpy.props import PointerProperty
-from bpy.utils import register_class, unregister_class
+from bpy.utils import register_class, unregister_class, previews
 import importlib
+import os
 
 from . import panels, properties
 
@@ -62,8 +63,18 @@ def register_unregister_modules(modules: list, register: bool):
         elif hasattr(m, 'unregister'):
             m.unregister()
 
+# icon dict to store.... something in
+custom_icons = None
+preview_collections = {}
 
 def register():
+    # icon registration
+    pcoll = previews.new()
+    custom_icons = pcoll
+    icons_dir = os.path.join(os.path.dirname(__file__), "icons")
+    pcoll.load("batchexport_icon", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
+    preview_collections["main"] = pcoll
+
     register_unregister_modules(modules, True)
 
     # Add batch export settings to Scene type
@@ -75,6 +86,12 @@ def register():
 
 
 def unregister():
+    # icon removal
+    for pcoll in preview_collections.values():
+        bpy.utils.previews.remove(pcoll)
+    preview_collections.clear()
+    custom_icons = None # Good practice to clear the global reference
+
     register_unregister_modules(reversed(modules), False)
 
     # Remove the panel from menus

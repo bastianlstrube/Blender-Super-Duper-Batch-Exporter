@@ -1,5 +1,6 @@
 import bpy
 from bpy.types import Panel
+from . import custom_icons
 import os
 
 # Get addon name from directory structure
@@ -25,7 +26,11 @@ def draw_settings(self, context):
     self.layout.use_property_split = True
     self.layout.use_property_decorate = False
     settings = context.scene.batch_export
-    self.layout.operator('export_mesh.batch', icon='EXPORT')
+    if custom_icons:
+        icon_id = custom_icons["batchexport_icon"].icon_id
+        self.layout.operator('export_mesh.batch', icon_value=icon_id)
+    else:
+        self.layout.operator('export_mesh.batch', icon='EXPORT')
     self.layout.separator()
     col = self.layout.column(align=True)
     col.prop(settings, 'directory')
@@ -121,7 +126,11 @@ def draw_popover(self, context):
             # Fallback: Just show the UI
             row = self.layout.row()
             row = row.row(align=True)
-            row.operator('export_mesh.batch', text='', icon='EXPORT')
+            if custom_icons:
+                icon_id = custom_icons["batchexport_icon"].icon_id
+                row.operator('export_mesh.batch', text='', icon_value=icon_id)
+            else:
+                row.operator('export_mesh.batch', text='', icon='EXPORT')
             row.popover(panel='POPOVER_PT_batch_export', text='')
             return
             
@@ -143,7 +152,11 @@ def draw_popover(self, context):
         if draw_in_current_menu:
             row = self.layout.row()
             row = row.row(align=True)
-            row.operator('export_mesh.batch', text='', icon='EXPORT')
+            if custom_icons:
+                icon_id = custom_icons["batchexport_icon"].icon_id
+                row.operator('export_mesh.batch', text='', icon_value=icon_id)
+            else:
+                row.operator('export_mesh.batch', text='', icon='EXPORT')
             row.popover(panel='POPOVER_PT_batch_export', text='')
     except Exception as e:
         # Debug output to system console
@@ -151,7 +164,11 @@ def draw_popover(self, context):
         # Fallback: Just draw the UI anyway
         row = self.layout.row()
         row = row.row(align=True)
-        row.operator('export_mesh.batch', text='', icon='EXPORT')
+        if custom_icons:
+            icon_id = custom_icons["batchexport_icon"].icon_id
+            row.operator('export_mesh.batch', text='', icon_value=icon_id)
+        else:
+            row.operator('export_mesh.batch', text='', icon='EXPORT')
         row.popover(panel='POPOVER_PT_batch_export', text='')
 
 # Side Panel panel (used with Side Panel option)
