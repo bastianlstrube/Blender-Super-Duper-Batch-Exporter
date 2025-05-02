@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import Panel
-from . import custom_icons
+from . import get_icon_id
 import os
 
 # Get addon name from directory structure
@@ -26,8 +26,10 @@ def draw_settings(self, context):
     self.layout.use_property_split = True
     self.layout.use_property_decorate = False
     settings = context.scene.batch_export
-    if custom_icons:
-        icon_id = custom_icons["batchexport_icon"].icon_id
+
+    # Get custom icon
+    icon_id = get_icon_id("batchexport_icon")
+    if icon_id:
         self.layout.operator('export_mesh.batch', icon_value=icon_id)
     else:
         self.layout.operator('export_mesh.batch', icon='EXPORT')
@@ -116,18 +118,21 @@ def draw_settings(self, context):
 # Draws the button and popover dropdown button used in the
 # 3D Viewport Header or Top Bar
 def draw_popover(self, context):
+
+    # Get custom icon        
+    icon_id = get_icon_id("batchexport_icon")
+
     try:    
         prefs = None
         name = get_addon_name_from_bl_info()
         if get_addon_name_from_bl_info() in context.preferences.addons:
             prefs = context.preferences.addons[name].preferences
-        
+
         if not prefs:
             # Fallback: Just show the UI
             row = self.layout.row()
             row = row.row(align=True)
-            if custom_icons:
-                icon_id = custom_icons["batchexport_icon"].icon_id
+            if icon_id:
                 row.operator('export_mesh.batch', text='', icon_value=icon_id)
             else:
                 row.operator('export_mesh.batch', text='', icon='EXPORT')
@@ -152,8 +157,7 @@ def draw_popover(self, context):
         if draw_in_current_menu:
             row = self.layout.row()
             row = row.row(align=True)
-            if custom_icons:
-                icon_id = custom_icons["batchexport_icon"].icon_id
+            if icon_id:
                 row.operator('export_mesh.batch', text='', icon_value=icon_id)
             else:
                 row.operator('export_mesh.batch', text='', icon='EXPORT')
@@ -164,8 +168,7 @@ def draw_popover(self, context):
         # Fallback: Just draw the UI anyway
         row = self.layout.row()
         row = row.row(align=True)
-        if custom_icons:
-            icon_id = custom_icons["batchexport_icon"].icon_id
+        if icon_id:
             row.operator('export_mesh.batch', text='', icon_value=icon_id)
         else:
             row.operator('export_mesh.batch', text='', icon='EXPORT')

@@ -19,8 +19,6 @@ from bpy.utils import register_class, unregister_class, previews
 import importlib
 import os
 
-from . import panels, properties
-
 module_names = [
     "preferences",
     "properties",
@@ -28,19 +26,19 @@ module_names = [
     "operators", 
 ]
 
-modules = [
-    __import__(__package__ + "." + submod, {}, {}, submod)
-    for submod in module_names
-]
 
-
-def register_unregister_modules(modules: list, register: bool):
+def register_unregister_modules(module_names: list, register: bool):
     """Recursively register or unregister modules by looking for either
     un/register() functions or lists named `registry` which should be a list of
     registerable classes.
     """
     register_func = register_class if register else unregister_class
     un = 'un' if not register else ''
+
+    modules = [
+    __import__(__package__ + "." + submod, {}, {}, submod)
+    for submod in module_names
+    ]
 
     for m in modules:
         if register:
@@ -64,18 +62,18 @@ def register_unregister_modules(modules: list, register: bool):
             m.unregister()
 
 # icon dict to store.... something in
-custom_icons = None
 preview_collections = {}
 
 def register():
     # icon registration
+    global preview_collections
     pcoll = previews.new()
     custom_icons = pcoll
     icons_dir = os.path.join(os.path.dirname(__file__), "icons")
     pcoll.load("batchexport_icon", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
     preview_collections["main"] = pcoll
 
-    register_unregister_modules(modules, True)
+    register_unregister_modules(module_names, True)
 
     # Add batch export settings to Scene type
     Scene.batch_export = PointerProperty(type=properties.BatchExportSettings)
@@ -87,12 +85,13 @@ def register():
 
 def unregister():
     # icon removal
+    global preview_collections
     for pcoll in preview_collections.values():
         bpy.utils.previews.remove(pcoll)
     preview_collections.clear()
     custom_icons = None # Good practice to clear the global reference
 
-    register_unregister_modules(reversed(modules), False)
+    register_unregister_modules(reversed(module_names), False)
 
     # Remove the panel from menus
     TOPBAR_MT_editor_menus.remove(panels.draw_popover)
@@ -100,3 +99,9 @@ def unregister():
 
     # Remove properties
     #del bpy.types.Scene.batch_export  # THIS SHOULD BE ADDED AS A BUTTON IN THE PREFERENCES INSTEAD
+
+def get_icon_id(icon_name):
+    """Helper function to get icon ID"""
+    if "main" in preview_collections and icon_name in preview_collections["main"]:
+        return preview_collections["main"][icon_name].icon_id
+    return 0
