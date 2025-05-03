@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "SuperDuperBatchExporter"
-version = "2.4.9"
+version = "2.5.0"
 name = "Super Duper Batch Exporter"
 tagline = "One click export to multiple files"
 maintainer = "Bastian L Strube <mail@bastianlstrube.dk>"
