@@ -87,7 +87,7 @@ def unregister():
     # icon removal
     global preview_collections
     for pcoll in preview_collections.values():
-        bpy.utils.previews.remove(pcoll)
+        previews.remove(pcoll)
     preview_collections.clear()
     custom_icons = None # Good practice to clear the global reference
 
