@@ -49,7 +49,7 @@ def register_unregister_modules(module_names: list, register: bool):
                     register_func(c)
                 except Exception as e:
                     print(
-                        f"Warning: Pie Menus failed to {un}register class: {c.__name__}"
+                        f"Warning: Super Duper Batch Exporter failed to {un}register class: {c.__name__}"
                     )
                     print(e)
 
