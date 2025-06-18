@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import AddonPreferences
-from bpy.props import EnumProperty
+from bpy.props import EnumProperty, BoolProperty
 from . import panels
 
 # Addon settings that are NOT specific to a .blend file
@@ -32,9 +32,15 @@ class BatchExportPreferences(AddonPreferences):
         ],
         update=addon_location_updated,
     )
-
+    copy_on_export: BoolProperty(
+        name="Copy on Export",
+        description="Make a copy of exported files in a secondary directory",
+        default=False,
+        update=addon_location_updated,
+    )
     def draw(self, context):
         self.layout.prop(self, "addon_location")
+        self.layout.prop(self, "copy_on_export")
 
 registry = [
     BatchExportPreferences,

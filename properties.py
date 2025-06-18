@@ -6,10 +6,21 @@ from .utils import get_operator_presets, get_preset_index, preset_enum_items_ref
 
 # Groups together all the addon settings that are saved in each .blend file
 class BatchExportSettings(PropertyGroup):
+
     # File Settings:
     directory: StringProperty(
         name="Directory",
         description="Which folder to place the exported files\nDefault of // will export to same directory as the blend file (only works if the blend file is saved)",
+        default="//",
+        subtype='DIR_PATH',
+    )
+    copy_on_export: BoolProperty(
+        name="Make Copies",
+        description="Make a copy of exported files in a secondary directory"
+    )
+    copy_directory: StringProperty(
+        name="Copy Dir",
+        description="Directory where export files will be copied to",
         default="//",
         subtype='DIR_PATH',
     )
@@ -27,7 +38,6 @@ class BatchExportSettings(PropertyGroup):
         name="Format",
         description="Which file format to export to",
         items=[
-            ("DAE", "Collada (.dae)", "", 1),
             ("ABC", "Alembic (.abc)", "", 9),
             ("USD", "Universal Scene Description (.usd/.usdc/.usda)", "", 2),
             ("SVG", "Grease Pencil as SVG (.svg)", "", 10),

@@ -1,5 +1,8 @@
 import bpy
 import os
+from pathlib import Path
+import shutil
+
 from bpy.types import Operator
 from . import utils
 
@@ -9,6 +12,7 @@ class EXPORT_MESH_OT_batch(Operator):
     bl_idname = "export_mesh.batch"
     bl_label = "Batch Export"
     file_count = 0
+    copy_count = 0
 
     def execute(self, context):
         settings = context.scene.batch_export
@@ -153,6 +157,9 @@ class EXPORT_MESH_OT_batch(Operator):
         else:
             self.report({'INFO'}, "Exported " +
                         str(self.file_count) + " file(s)")
+        if self.copy_count:
+            self.report({'INFO'}, "Made " +
+                        str(self.copy_count) + " copy(ies)")
 
         return {'FINISHED'}
 
@@ -319,21 +326,14 @@ class EXPORT_MESH_OT_batch(Operator):
         suffix = settings.suffix
         name = prefix + bpy.path.clean_name(itemname) + suffix
         fp = os.path.join(base_dir, name)
-
+        extension = None
         # Export
 
-        if settings.file_format == "DAE":
-            options = utils.load_operator_preset(
-                'wm.collada_export', settings.dae_preset)
-            options["filepath"] = fp
-            options["selected"] = True
-            options["apply_modifiers"] = settings.apply_mods
-            bpy.ops.wm.collada_export(**options)
-
-        elif settings.file_format == "ABC":
+        if settings.file_format == "ABC":
+            extension = '.abc'
             options = utils.load_operator_preset(
                 'wm.alembic_export', settings.abc_preset)
-            options["filepath"] = fp+".abc"
+            options["filepath"] = fp+extension
             options["selected"] = True
             options["start"] = settings.frame_start
             options["end"] = settings.frame_end
@@ -346,40 +346,47 @@ class EXPORT_MESH_OT_batch(Operator):
             bpy.ops.wm.alembic_export('EXEC_REGION_WIN', **options)
 
         elif settings.file_format == "USD":
+            extension = settings.usd_format
             options = utils.load_operator_preset(
                 'wm.usd_export', settings.usd_preset)
-            options["filepath"] = fp+settings.usd_format
+            options["filepath"] = fp+extension
             options["selected_objects_only"] = True
             bpy.ops.wm.usd_export(**options)
 
         elif settings.file_format == "SVG":
+            extension = '.svg'
             bpy.ops.wm.gpencil_export_svg(
-                filepath=fp+".svg", selected_object_type='SELECTED')
+                filepath=fp+extension, selected_object_type='SELECTED')
 
         elif settings.file_format == "PDF":
+            extension = '.pdf'
             bpy.ops.wm.gpencil_export_pdf(
-                filepath=fp+".pdf", selected_object_type='SELECTED')
+                filepath=fp+extension, selected_object_type='SELECTED')
 
         elif settings.file_format == "OBJ":
+            extension = '.obj'
             options = utils.load_operator_preset(
                 'wm.obj_export', settings.obj_preset)
-            options["filepath"] = fp+".obj"
+            options["filepath"] = fp+extension
             options["export_selected_objects"] = True
             options["apply_modifiers"] = settings.apply_mods
             bpy.ops.wm.obj_export(**options)
 
         elif settings.file_format == "PLY":
+            extension = '.ply'
             bpy.ops.wm.ply_export(
-                filepath=fp+".ply", ascii_format=settings.ply_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
+                filepath=fp+extension, ascii_format=settings.ply_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
 
         elif settings.file_format == "STL":
+            extension = '.stl'
             bpy.ops.wm.stl_export(
-                filepath=fp+".stl", ascii_format=settings.stl_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
+                filepath=fp+extension, ascii_format=settings.stl_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
 
         elif settings.file_format == "FBX":
+            extension = '.fbx'
             options = utils.load_operator_preset(
                 'export_scene.fbx', settings.fbx_preset)
-            options["filepath"] = fp+".fbx"
+            options["filepath"] = fp+extension
             options["use_selection"] = True
             options["use_mesh_modifiers"] = settings.apply_mods
             bpy.ops.export_scene.fbx(**options)
@@ -394,12 +401,14 @@ class EXPORT_MESH_OT_batch(Operator):
                         
 
         elif settings.file_format == "glTF":
+            extension = '.glb'
             options = utils.load_operator_preset(
                 'export_scene.gltf', settings.gltf_preset)
             options["filepath"] = fp
             options["use_selection"] = True
             options["export_apply"] = settings.apply_mods
             bpy.ops.export_scene.gltf(**options)
+            print(options.keys())
 
         # Reset the transform to what it was before
         i = 0
@@ -409,8 +418,30 @@ class EXPORT_MESH_OT_batch(Operator):
             obj.scale = old_scales[i]
             i += 1
 
-        print("exported: ", fp)
+        print("exported: ", fp + extension)
         self.file_count += 1
+
+        # COPY EXPORTED FILES
+        copies = False
+        name = __package__
+        if name in context.preferences.addons:
+            prefs = context.preferences.addons[name].preferences
+            if prefs and hasattr(prefs, 'copy_on_export'):
+                copies = prefs.copy_on_export
+
+        if copies and settings.copy_on_export:
+            exportfile = Path(fp).with_suffix(extension)
+            if exportfile.exists():
+                oldroot = Path(bpy.path.abspath(settings.directory))
+                newroot = Path(bpy.path.abspath(settings.copy_directory))
+                if not oldroot.resolve() == newroot.resolve():
+                    subpath = exportfile.relative_to(oldroot)
+                    copyfile = newroot / subpath
+
+                    shutil.copy(exportfile, copyfile)
+                    print('made this copy:   ', copyfile.resolve())
+                    self.copy_count += 1
+
 
 
 registry = [

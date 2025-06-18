@@ -27,6 +27,13 @@ def draw_settings(self, context):
     self.layout.use_property_decorate = False
     settings = context.scene.batch_export
 
+    copies = False
+    name = __package__
+    if name in context.preferences.addons:
+        prefs = context.preferences.addons[name].preferences
+        if prefs and hasattr(prefs, 'copy_on_export'):
+            copies = prefs.copy_on_export
+
     # Get custom icon
     icon_id = get_icon_id("batchexport_icon")
     if icon_id:
@@ -36,6 +43,10 @@ def draw_settings(self, context):
     self.layout.separator()
     col = self.layout.column(align=True)
     col.prop(settings, 'directory')
+    if copies and settings.copy_on_export:
+        col.prop(settings, 'copy_directory')
+    if copies:
+        col.prop(settings, 'copy_on_export')
     col.prop(settings, 'prefix')
     col.prop(settings, 'suffix')
     self.layout.separator()
