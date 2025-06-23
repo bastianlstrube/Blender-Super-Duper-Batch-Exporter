@@ -152,14 +152,20 @@ class EXPORT_MESH_OT_batch(Operator):
         if obj_active:
             bpy.ops.object.mode_set(mode=mode)
 
+        # Report results
+        copies = False
+        name = __package__
+        if name in context.preferences.addons:
+            prefs = context.preferences.addons[name].preferences
+            if prefs and hasattr(prefs, 'copy_on_export'):
+                copies = prefs.copy_on_export
+
         if self.file_count == 0:
             self.report({'ERROR'}, "NOTHING TO EXPORT")
-        else:
-            self.report({'INFO'}, "Exported " +
-                        str(self.file_count) + " file(s)")
-        if self.copy_count:
-            self.report({'INFO'}, "Made " +
-                        str(self.copy_count) + " copy(ies)")
+        elif copies and settings.copy_on_export:
+            self.report({'INFO'}, f"Exported {self.file_count} file(s),\nMade {self.copy_count} copies")
+        elif self.copy_count:
+            self.report({'INFO'}, f"Exported {self.file_count} file(s)")
 
         return {'FINISHED'}
 
