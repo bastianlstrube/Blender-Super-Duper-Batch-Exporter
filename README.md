@@ -1,5 +1,11 @@
-## Super Duper Batch Exporter
-One click export to multiple files. Set options like **Output Directory**, **Prefix**, **Suffix**, filter by **Type** or set object **Location**, **Rotation** or **Scale** to specific value on export. Options need only be set once and gets saved with the blender file.
+# Super Duper Batch Exporter
+### Forked and uploaded to Extension Platform: https://extensions.blender.org/add-ons/superduperbatchexporter/
+
+## Description
+One click export to multiple files. Options are set once and stored with blend file for consistent export to game engines or other 3D software. With options to limit export, e.g. **Render Enabled**, you'll never have repeat the same selection each time you export.
+
+### Export Options
+Use existing export presets, set options like **Output Directory**, **Prefix**, **Suffix**, filter by **Type** or set object **Location**, **Rotation** or **Scale** on export. 
 
 **Mode** exports a file for each:
 - **Object**
@@ -9,19 +15,15 @@ One click export to multiple files. Set options like **Output Directory**, **Pre
 - **Parent Object with Collections as Sub-directories**   (NEW)
 - **Scene**  (NEW)
 
-
-**Limit to:**
+**Limit to** specifies which objects to export:
 - **Selected**
 - **Visible**
 - **Render Enabled and Visible**  (NEW)
 
-Supports: **DAE, ABC, USD, SVG, PDF, OBJ, PLY, STL, FBX, glTF**
-
-UI Locations:
-- **Top Bar** (by File, Edit, Render, Window, Help)
-- **3D Viewport Header** (next to View, Select, Add...)
-- **3D Viewport Side Bar Export Tab**. (N-panel)
-Select where it appears in Addon Location setting under Edit > Preferences > Add-ons > Super Duper Batch Exporter > Preferences.
+### Other Features
+- Supports: **DAE, ABC, USD, SVG, PDF, OBJ, PLY, STL, FBX, glTF**.
+- **FBX only feature**: Automatic LOD creation on export using decimate modifier. Game engines like Unreal and Unity will automatically setup LOD on import.
+- Choose between these UI Locations: **Top Bar**, **N-panel**, **3D Viewport Header**
 
 
 The Add-on is a fork of MrTriPie's Super Batch Export which can be found on github.
