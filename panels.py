@@ -88,6 +88,11 @@ def draw_settings(self, context):
     elif settings.file_format == 'FBX':
         col.prop(settings, 'fbx_preset_enum')
         self.layout.prop(settings, 'apply_mods')
+        
+        # Unity Compatibility
+        box = self.layout.box()
+        box.label(text="Unity Compatibility", icon="LINK_BLEND")
+        box.prop(settings, 'unity_export')
     elif settings.file_format == 'glTF':
         col.prop(settings, 'gltf_preset_enum')
         self.layout.prop(settings, 'apply_mods')

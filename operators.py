@@ -395,6 +395,17 @@ class EXPORT_MESH_OT_batch(Operator):
             options["filepath"] = fp+extension
             options["use_selection"] = True
             options["use_mesh_modifiers"] = settings.apply_mods
+            
+            # Unity-specific FBX export settings
+            if settings.unity_export:
+                options["global_scale"] = 1.0
+                options["apply_unit_scale"] = False
+                options["apply_scale_options"] = 'FBX_SCALE_UNITS'
+                options["use_space_transform"] = True
+                options["axis_forward"] = '-Z'
+                options["axis_up"] = 'Y'
+                options["bake_space_transform"] = True
+            
             bpy.ops.export_scene.fbx(**options)
 
             # LOD De-Creation
