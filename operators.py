@@ -46,7 +46,6 @@ class EXPORT_MESH_OT_batch(Operator):
         
 
         ##### EXPORT OBJECTS BASED ON MODES #####
-
         if settings.mode == 'OBJECTS':
             for obj in self.get_filtered_objects(context, settings):
 
@@ -164,7 +163,7 @@ class EXPORT_MESH_OT_batch(Operator):
             self.report({'ERROR'}, "NOTHING TO EXPORT")
         elif copies and settings.copy_on_export:
             self.report({'INFO'}, f"Exported {self.file_count} file(s),\nMade {self.copy_count} copies")
-        elif self.copy_count:
+        elif self.file_count:
             self.report({'INFO'}, f"Exported {self.file_count} file(s)")
 
         return {'FINISHED'}

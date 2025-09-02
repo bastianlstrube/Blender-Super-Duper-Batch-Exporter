@@ -26,6 +26,7 @@ def draw_settings(self, context):
     self.layout.use_property_split = True
     self.layout.use_property_decorate = False
     settings = context.scene.batch_export
+    self.layout.operator_context = 'INVOKE_DEFAULT'
 
     copies = False
     name = __package__
@@ -144,9 +145,9 @@ def draw_popover(self, context):
             row = self.layout.row()
             row = row.row(align=True)
             if icon_id:
-                row.operator('export_mesh.batch', text='', icon_value=icon_id)
+                row.operator('export_mesh.batch', text='', icon_value=icon_id).invoke(context, 'DEFAULT')
             else:
-                row.operator('export_mesh.batch', text='', icon='EXPORT')
+                row.operator('export_mesh.batch', text='', icon='EXPORT').invoke(context, 'DEFAULT')
             row.popover(panel='POPOVER_PT_batch_export', text='')
             return
             
