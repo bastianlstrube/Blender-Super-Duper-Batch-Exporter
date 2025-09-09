@@ -447,7 +447,485 @@ class EXPORT_MESH_OT_batch(Operator):
                     print('made this copy:   ', copyfile.resolve())
                     self.copy_count += 1
 
+'''
+# THIS IS A GREAT WAY FOR TEMPORARY VISIBILITY CHANGES FOR EXPORT
+from contextlib import contextmanager
+@contextmanager
+def temporary_visibility(objects):
+    """
+    A context manager to temporarily make Blender objects and their entire
+    parent hierarchies visible.
 
+    When the 'with' block is exited, it automatically restores the original
+    visibility states of all affected objects. This is useful for export
+    operations where objects must be visible to be included.
+
+    Args:
+        objects (list): A list of Blender object references (e.g., from
+                        bpy.context.selected_objects).
+    
+    Example Usage:
+        # Select some objects in the 3D Viewport
+        selected_objs = bpy.context.selected_objects
+        
+        with temporary_visibility(selected_objs):
+            # Your export code goes here.
+            # All selected objects and their parents are now visible.
+            print("Exporting visible objects...")
+            # bpy.ops.export_scene.fbx(filepath="path/to/export.fbx")
+        
+        # After this block, the original visibility is restored.
+    """
+    
+    # Use a set for efficiency, as objects might share parents.
+    originally_hidden = set()
+    
+    # Create a comprehensive set of all objects that need to be checked,
+    # including the initial objects and all of their parents.
+    all_objects_to_process = set(objects)
+    for obj in objects:
+        parent = obj.parent
+        while parent:
+            all_objects_to_process.add(parent)
+            parent = parent.parent
+            
+    # First, identify all objects in the hierarchy that are currently hidden,
+    # add them to our 'originally_hidden' set, and then make them visible.
+    # The hide_get() method correctly checks the final evaluated visibility.
+    for obj in all_objects_to_process:
+        if obj.hide_get():
+            originally_hidden.add(obj)
+            obj.hide_set(False)
+            
+    print(f"Temporarily made {len(originally_hidden)} object(s) visible for the operation.")
+
+    try:
+        # 'yield' passes control back to the code inside the 'with' block.
+        # The script will pause here until that block is finished or an error occurs.
+        yield
+    finally:
+        # This code is guaranteed to run after the 'with' block.
+        # It iterates through only the objects that we originally un-hid
+        # and sets their visibility back to hidden.
+        print("Restoring original visibility states...")
+        for obj in originally_hidden:
+            # A good practice is to check if the object still exists,
+            # in case the operation inside the 'with' block deleted it.
+            if obj.name in bpy.data.objects:
+                obj.hide_set(True)
+        print("Visibility restored.")
+        
+objects = bpy.context.collection.objects
+
+with temporary_visibility(objects):
+    for obj in objects:
+        if obj.visible_get():
+            print(f'{obj.name} is visible')
+
+##########################################################################################################
+##########################################################################################################
+##########################################################################################################
+##########################################################################################################
+ENTIRE FILE BELOW RESTRUCTURED BY GEMINI
+##########################################################################################################
+##########################################################################################################
+##########################################################################################################
+##########################################################################################################
+
+import bpy
+import shutil
+from pathlib import Path
+from contextlib import contextmanager
+from bpy.types import Operator
+
+# Assuming 'utils' is a module in your addon for loading presets
+# from . import utils
+
+class EXPORT_MESH_OT_batch(Operator):
+    """Export many objects to separate files all at once."""
+    bl_idname = "export_mesh.batch"
+    bl_label = "Batch Export"
+
+    def execute(self, context):
+        """
+        Main entry point. Orchestrates the validation, job creation,
+        and execution of the batch export process.
+        """
+        self.file_count = 0
+        self.copy_count = 0
+        settings = context.scene.batch_export
+
+        # 1. Validate prerequisites (saved file, valid directory)
+        error = self._validate_prerequisites(settings)
+        if error:
+            self.report({'ERROR'}, error)
+            return {'CANCELLED'}
+
+        base_dir = Path(bpy.path.abspath(settings.directory))
+
+        # 2. Wrap the entire operation in a state preservation context manager
+        with self._preserve_blender_state(context):
+            
+            # 3. Get a master list of objects to consider for export
+            filtered_objects = self._get_filtered_objects(context, settings)
+            if not filtered_objects:
+                self.report({'WARNING'}, "No objects matched the filter settings.")
+                return {'FINISHED'}
+
+            # 4. Generate and process each export job based on the export mode
+            try:
+                export_jobs = self._generate_export_jobs(settings, filtered_objects, base_dir)
+                for job in export_jobs:
+                    self._process_export_job(context, settings, job)
+            except Exception as e:
+                self.report({'ERROR'}, f"Operation failed: {e}")
+                # The 'finally' clause in the context managers will still clean up
+                return {'CANCELLED'}
+
+        # 5. Report the final results
+        self._report_results(context, settings)
+        return {'FINISHED'}
+
+    # =================================================================
+    # 1. VALIDATION AND SETUP
+    # =================================================================
+
+    def _validate_prerequisites(self, settings):
+        """Checks for common issues before starting. Returns an error string or None."""
+        base_dir = Path(settings.directory)
+        if not base_dir.is_absolute() and not bpy.data.is_saved:
+            return "Please save the .blend file before exporting with a relative path."
+        
+        abs_path = Path(bpy.path.abspath(settings.directory))
+        if not abs_path.is_dir():
+            return f"Export directory does not exist: {abs_path}"
+        
+        return None
+
+    # =================================================================
+    # 2. STATE MANAGEMENT (CONTEXT MANAGERS)
+    # =================================================================
+
+    @contextmanager
+    def _preserve_blender_state(self, context):
+        """Saves and restores selection, active object, and mode."""
+        view_layer = context.view_layer
+        original_selection = context.selected_objects[:]
+        original_active = view_layer.objects.active
+        original_mode = original_active.mode if original_active else 'OBJECT'
+
+        try:
+            if original_mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            yield
+        finally:
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in original_selection:
+                if obj.name in bpy.data.objects:
+                    obj.select_set(True)
+            view_layer.objects.active = original_active
+            if original_active and original_mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode=original_mode)
+
+    @contextmanager
+    def temporary_visibility(self, objects):
+        """Temporarily makes objects and their parent hierarchies visible for export."""
+        originally_hidden = set()
+        objects_to_process = set(objects)
+        for obj in objects:
+            parent = obj.parent
+            while parent:
+                objects_to_process.add(parent)
+                parent = parent.parent
+        
+        for obj in objects_to_process:
+            if obj.hide_get():
+                originally_hidden.add(obj)
+                obj.hide_set(False)
+        try:
+            yield
+        finally:
+            for obj in originally_hidden:
+                if obj.name in bpy.data.objects:
+                    obj.hide_set(True)
+
+    @contextmanager
+    def _temporary_transform(self, settings, objects_to_transform):
+        """Applies and then resets object transforms for the duration of the export."""
+        original_transforms = {
+            obj: (obj.location.copy(), obj.rotation_euler.copy(), obj.scale.copy())
+            for obj in objects_to_transform
+        }
+        
+        try:
+            for obj in objects_to_transform:
+                is_child_of_selected = "PARENT" in settings.mode and obj.parent in objects_to_transform
+                if not is_child_of_selected:
+                    if settings.set_location: obj.location = settings.location
+                    if settings.set_rotation: obj.rotation_euler = settings.rotation
+                    if settings.set_scale: obj.scale = settings.scale
+            yield
+        finally:
+            for obj, (loc, rot, scale) in original_transforms.items():
+                if obj.name in bpy.data.objects:
+                    obj.location, obj.rotation_euler, obj.scale = loc, rot, scale
+
+    @contextmanager
+    def _managed_lods(self, settings, obj):
+        """Creates and cleans up LOD objects for FBX export."""
+        if not (settings.create_lod and settings.file_format == 'FBX' and obj.type == 'MESH'):
+            yield [obj]  # No LODs needed, just yield the original object
+            return
+
+        lod_objects = []
+        original_name = obj.name
+        try:
+            # Prepare original object
+            obj.name = f"{original_name}_preLOD"
+            
+            # Create LOD Parent (Empty)
+            collection = obj.users_collection[0]
+            lod_parent = bpy.data.objects.new(original_name, None)
+            collection.objects.link(lod_parent)
+            lod_parent.location = obj.location
+            lod_parent.rotation_quaternion = obj.rotation_quaternion
+            lod_parent["fbx_type"] = "LodGroup"
+            if obj.parent:
+                lod_parent.parent = obj.parent
+            lod_objects.append(lod_parent)
+            
+            # Create LOD0 (base mesh)
+            lod0 = obj.copy()
+            lod0.data = lod0.data.copy()
+            lod0.name = f"{original_name}_LOD0"
+            lod0.parent = lod_parent
+            lod0.location = (0, 0, 0)
+            collection.objects.link(lod0)
+            lod_objects.append(lod0)
+            
+            # Create subsequent LODs
+            for i in range(settings.lod_count):
+                lod = lod0.copy()
+                lod.data = lod.data.copy()
+                lod.name = f"{original_name}_LOD{i + 1}"
+                lod.parent = lod_parent
+                collection.objects.link(lod)
+                mod = lod.modifiers.new(name='DecimateLOD', type='DECIMATE')
+                mod.ratio = getattr(settings, f"lod{i + 1}_ratio")
+                lod_objects.append(lod)
+            
+            yield lod_objects
+
+        finally:
+            # Guaranteed cleanup
+            for lod_obj in lod_objects:
+                bpy.data.objects.remove(lod_obj, do_unlink=True)
+            if obj.name.endswith('_preLOD'):
+                obj.name = original_name
+
+    # =================================================================
+    # 3. OBJECT GATHERING AND JOB CREATION
+    # =================================================================
+
+    def _get_filtered_objects(self, context, settings):
+        """Gets a list of all objects that meet the initial filter criteria."""
+        source_objects = []
+        if settings.limit == 'SELECTED':
+            source_objects = context.selected_objects[:]
+        elif settings.limit == 'VISIBLE':
+            source_objects = [obj for obj in context.view_layer.objects if obj.visible_get()]
+        elif settings.limit == 'RENDERABLE':
+            renderable_names = {obj.name for obj in self._get_all_renderable_objects(context.scene)}
+            source_objects = [obj for obj in context.view_layer.objects if obj.name in renderable_names]
+        else: # 'ALL'
+            source_objects = context.scene.objects[:]
+            
+        # Further filter by object types
+        return [obj for obj in source_objects if obj.type in settings.object_types]
+
+    def _get_all_renderable_objects(self, scene):
+        """Recursively finds all objects not hidden for rendering."""
+        renderable = []
+        def find_in_collection(collection):
+            if collection.hide_render: return
+            for obj in collection.objects:
+                if not obj.hide_render:
+                    renderable.append(obj)
+            for child_coll in collection.children:
+                find_in_collection(child_coll)
+        find_in_collection(scene.collection)
+        return renderable
+
+    def _generate_export_jobs(self, settings, objects, base_dir):
+        """A generator that yields a 'job' dictionary for each file to be exported."""
+        mode = settings.mode
+        
+        if mode == 'OBJECTS' or 'COLLECTION_SUBDIR' in mode and 'PARENT' not in mode:
+            for obj in objects:
+                yield self._create_job(settings, obj.name, [obj], base_dir, source_obj=obj)
+
+        elif mode == 'PARENT_OBJECTS' or 'COLLECTION_SUBDIR' in mode and 'PARENT' in mode:
+            object_set = set(objects)
+            for obj in objects:
+                if obj.parent not in object_set:  # Only export top-level parents
+                    children = [c for c in obj.children_recursive if c in object_set]
+                    yield self._create_job(settings, obj.name, [obj] + children, base_dir, source_obj=obj)
+        
+        elif mode == 'COLLECTIONS':
+            collections_to_export = {}
+            for obj in objects:
+                for coll in obj.users_collection:
+                    collections_to_export.setdefault(coll, []).append(obj)
+            for coll, coll_objects in collections_to_export.items():
+                yield self._create_job(settings, coll.name, coll_objects, base_dir)
+        
+        elif mode == 'SCENE':
+            filename = settings.prefix + settings.suffix
+            if not filename:
+                filename = Path(bpy.data.filepath).stem if bpy.data.is_saved else "Untitled"
+            yield self._create_job(settings, filename, objects, base_dir)
+
+    def _create_job(self, settings, name, objects, base_dir, source_obj=None):
+        """Helper to build a job dictionary, handling subdirectories and prefixes."""
+        job_dir = base_dir
+        item_name = name
+        
+        # Handle collection subdirectories
+        if 'COLLECTION_SUBDIR' in settings.mode and source_obj and source_obj.users_collection:
+            collection = source_obj.users_collection[0]
+            if collection.name != "Scene Collection":
+                if settings.full_hierarchy:
+                    # This assumes a 'utils.get_collection_hierarchy' function exists
+                    hierarchy = utils.get_collection_hierarchy(collection.name)
+                    job_dir = base_dir / hierarchy
+                else:
+                    job_dir = base_dir / collection.name
+                job_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Handle collection prefix
+        if settings.prefix_collection and 'OBJECT' in settings.mode and source_obj and source_obj.users_collection:
+            collection_name = source_obj.users_collection[0].name
+            if collection_name != 'Scene Collection':
+                item_name = f"{collection_name}_{item_name}"
+
+        return {'name': item_name, 'objects': objects, 'directory': job_dir}
+
+    # =================================================================
+    # 4. CORE EXPORT PROCESSING
+    # =================================================================
+
+    def _process_export_job(self, context, settings, job):
+        """Executes a single export job with robust state management."""
+        if not job['objects']:
+            return
+
+        # Set selection for this job
+        for obj in job['objects']:
+            obj.select_set(True)
+            
+        # Use nested context managers for maximum safety
+        try:
+            with self.temporary_visibility(job['objects']):
+                with self._temporary_transform(settings, context.selected_objects):
+                    # LOD management is complex and destructive, so it gets its own manager.
+                    # This handles the case where only one object gets LODs.
+                    is_lod_job = settings.create_lod and settings.file_format == 'FBX'
+                    if is_lod_job and len(job['objects']) == 1 and job['objects'][0].type == 'MESH':
+                        with self._managed_lods(settings, job['objects'][0]) as lod_export_objects:
+                            bpy.ops.object.select_all(action='DESELECT')
+                            for obj in lod_export_objects: obj.select_set(True)
+                            filepath = self._dispatch_export_operator(settings, job)
+                    else:
+                        filepath = self._dispatch_export_operator(settings, job)
+
+                    if filepath:
+                        self.file_count += 1
+                        print(f"Exported: {filepath}")
+                        self._copy_exported_file(settings, filepath)
+        finally:
+            # Deselect all after the job is done
+            bpy.ops.object.select_all(action='DESELECT')
+
+    def _dispatch_export_operator(self, settings, job):
+        """Calls the appropriate Blender export operator based on settings."""
+        prefix = settings.prefix
+        suffix = settings.suffix
+        clean_name = prefix + bpy.path.clean_name(job['name']) + suffix
+        filepath_no_ext = job['directory'] / clean_name
+        
+        # This giant if/elif block could be a dictionary mapping formats to functions
+        # but is kept this way for clarity and similarity to the original.
+        ext = ""
+        options = {}
+        
+        if settings.file_format == "FBX":
+            ext = '.fbx'
+            # options = utils.load_operator_preset('export_scene.fbx', settings.fbx_preset)
+            options.update({
+                "filepath": str(filepath_no_ext) + ext,
+                "use_selection": True,
+                "use_mesh_modifiers": settings.apply_mods
+            })
+            bpy.ops.export_scene.fbx(**options)
+        
+        elif settings.file_format == "glTF":
+            ext = '.glb'
+            # options = utils.load_operator_preset('export_scene.gltf', settings.gltf_preset)
+            options.update({
+                "filepath": str(filepath_no_ext),
+                "use_selection": True,
+                "export_apply": settings.apply_mods
+            })
+            bpy.ops.export_scene.gltf(**options)
+            
+        # ... Add other file formats (OBJ, USD, ABC, etc.) here in the same pattern ...
+        
+        else:
+            return None # Unsupported format
+            
+        return filepath_no_ext.with_suffix(ext)
+
+    # =================================================================
+    # 5. POST-PROCESSING AND REPORTING
+    # =================================================================
+
+    def _copy_exported_file(self, settings, exported_file_path):
+        """Copies the exported file to a secondary directory if enabled."""
+        prefs = bpy.context.preferences.addons[__package__].preferences
+        should_copy = prefs.copy_on_export and settings.copy_on_export
+        
+        if not should_copy or not exported_file_path.exists():
+            return
+            
+        try:
+            source_root = Path(bpy.path.abspath(settings.directory)).resolve()
+            dest_root = Path(bpy.path.abspath(settings.copy_directory)).resolve()
+            
+            if source_root != dest_root:
+                relative_path = exported_file_path.relative_to(source_root)
+                copy_path = dest_root / relative_path
+                copy_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(exported_file_path, copy_path)
+                self.copy_count += 1
+                print(f"Copied to: {copy_path}")
+        except Exception as e:
+            print(f"Could not copy file: {e}")
+
+    def _report_results(self, context, settings):
+        """Generates the final report message for the user."""
+        prefs = context.preferences.addons[__package__].preferences
+        copies_enabled = prefs.copy_on_export and settings.copy_on_export
+
+        if self.file_count == 0:
+            self.report({'INFO'}, "Operation complete. No files were exported.")
+        elif copies_enabled and self.copy_count > 0:
+            self.report({'INFO'}, f"Exported {self.file_count} file(s) and made {self.copy_count} copies.")
+        else:
+            self.report({'INFO'}, f"Successfully exported {self.file_count} file(s).")
+
+
+'''
 
 registry = [
     EXPORT_MESH_OT_batch,
