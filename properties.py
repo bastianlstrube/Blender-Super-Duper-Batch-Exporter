@@ -73,7 +73,7 @@ class BatchExportSettings(PropertyGroup):
         items=[
             ("VISIBLE", "Visible", "", 1),
             ("SELECTED", "Selected", "", 2),
-            ("RENDERABLE", "Render Enabled & Visible", "", 3)
+            ("RENDERABLE", "Render Enabled", "", 3)
         ],
     )
     prefix_collection: BoolProperty(

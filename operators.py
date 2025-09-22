@@ -1,3 +1,4 @@
+
 import bpy
 import os
 from pathlib import Path
@@ -5,6 +6,7 @@ import shutil
 
 from bpy.types import Operator
 from . import utils
+
 
 # Operator called when pressing the batch export button.
 class EXPORT_MESH_OT_batch(Operator):
@@ -537,6 +539,7 @@ import shutil
 from pathlib import Path
 from contextlib import contextmanager
 from bpy.types import Operator
+from . import utils
 
 # Assuming 'utils' is a module in your addon for loading presets
 # from . import utils
