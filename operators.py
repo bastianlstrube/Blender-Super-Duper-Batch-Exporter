@@ -450,85 +450,11 @@ class EXPORT_MESH_OT_batch(Operator):
                     self.copy_count += 1
 
 '''
-# THIS IS A GREAT WAY FOR TEMPORARY VISIBILITY CHANGES FOR EXPORT
-from contextlib import contextmanager
-@contextmanager
-def temporary_visibility(objects):
-    """
-    A context manager to temporarily make Blender objects and their entire
-    parent hierarchies visible.
-
-    When the 'with' block is exited, it automatically restores the original
-    visibility states of all affected objects. This is useful for export
-    operations where objects must be visible to be included.
-
-    Args:
-        objects (list): A list of Blender object references (e.g., from
-                        bpy.context.selected_objects).
-    
-    Example Usage:
-        # Select some objects in the 3D Viewport
-        selected_objs = bpy.context.selected_objects
-        
-        with temporary_visibility(selected_objs):
-            # Your export code goes here.
-            # All selected objects and their parents are now visible.
-            print("Exporting visible objects...")
-            # bpy.ops.export_scene.fbx(filepath="path/to/export.fbx")
-        
-        # After this block, the original visibility is restored.
-    """
-    
-    # Use a set for efficiency, as objects might share parents.
-    originally_hidden = set()
-    
-    # Create a comprehensive set of all objects that need to be checked,
-    # including the initial objects and all of their parents.
-    all_objects_to_process = set(objects)
-    for obj in objects:
-        parent = obj.parent
-        while parent:
-            all_objects_to_process.add(parent)
-            parent = parent.parent
-            
-    # First, identify all objects in the hierarchy that are currently hidden,
-    # add them to our 'originally_hidden' set, and then make them visible.
-    # The hide_get() method correctly checks the final evaluated visibility.
-    for obj in all_objects_to_process:
-        if obj.hide_get():
-            originally_hidden.add(obj)
-            obj.hide_set(False)
-            
-    print(f"Temporarily made {len(originally_hidden)} object(s) visible for the operation.")
-
-    try:
-        # 'yield' passes control back to the code inside the 'with' block.
-        # The script will pause here until that block is finished or an error occurs.
-        yield
-    finally:
-        # This code is guaranteed to run after the 'with' block.
-        # It iterates through only the objects that we originally un-hid
-        # and sets their visibility back to hidden.
-        print("Restoring original visibility states...")
-        for obj in originally_hidden:
-            # A good practice is to check if the object still exists,
-            # in case the operation inside the 'with' block deleted it.
-            if obj.name in bpy.data.objects:
-                obj.hide_set(True)
-        print("Visibility restored.")
-        
-objects = bpy.context.collection.objects
-
-with temporary_visibility(objects):
-    for obj in objects:
-        if obj.visible_get():
-            print(f'{obj.name} is visible')
-
 ##########################################################################################################
 ##########################################################################################################
 ##########################################################################################################
 ##########################################################################################################
-ENTIRE FILE BELOW RESTRUCTURED BY GEMINI
+ENTIRE EXPORT OPERATOR RESTRUCTURED BY GEMINI
 ##########################################################################################################
 ##########################################################################################################
 ##########################################################################################################
@@ -748,16 +674,36 @@ class EXPORT_MESH_OT_batch(Operator):
         return [obj for obj in source_objects if obj.type in settings.object_types]
 
     def _get_all_renderable_objects(self, scene):
-        """Recursively finds all objects not hidden for rendering."""
+        """
+        Gets a list of all objects that are not disabled for rendering,
+        accounting for parent object and collection visibility.
+        """
         renderable = []
-        def find_in_collection(collection):
-            if collection.hide_render: return
-            for obj in collection.objects:
-                if not obj.hide_render:
-                    renderable.append(obj)
-            for child_coll in collection.children:
-                find_in_collection(child_coll)
-        find_in_collection(scene.collection)
+        # We must make all objects temporarily visible in the viewport,
+        # because obj.hide_render depends on the computed viewport visibility.
+        # The context manager will handle making everything visible and then restoring it.
+        with self.temporary_visibility(scene.objects):
+            # This inner function performs the actual check now that visibility is guaranteed.
+            def find_in_collection(collection):
+                # If a whole collection is disabled for render, skip it and its children.
+                if collection.hide_render:
+                    return
+                
+                # Check objects within this collection.
+                for obj in collection.objects:
+                    # Because of the context manager, this check is now accurate.
+                    if not obj.hide_render:
+                        renderable.append(obj)
+                
+                # Recurse into child collections.
+                for child_coll in collection.children:
+                    find_in_collection(child_coll)
+
+            # Start the recursive search from the scene's master collection.
+            find_in_collection(scene.collection)
+        
+        # The 'with' block has ended, and the context manager has automatically
+        # restored all original object visibilities.
         return renderable
 
     def _generate_export_jobs(self, settings, objects, base_dir):
