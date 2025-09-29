@@ -165,6 +165,11 @@ class BatchExportSettings(PropertyGroup):
         description="Should the modifiers by applied onto the exported mesh?\nCan't export Shape Keys with this on",
         default=True,
     )
+    unity_export: BoolProperty(
+        name="Unity Compatible",
+        description="Export with Unity-compatible settings (scale 1:1, Y-up axis)",
+        default=True,
+    )
     frame_start: IntProperty(
         name="Frame Start",
         min=0,
