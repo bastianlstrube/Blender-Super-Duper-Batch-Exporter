@@ -60,7 +60,6 @@ def get_preset_index(operator, preset_name):
             return p
     return 0
 
-
 def find_parent_collection(target_coll):
     """
     Finds the immediate parent collection of a given collection within the scene.

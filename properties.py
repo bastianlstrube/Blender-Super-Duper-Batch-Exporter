@@ -3,6 +3,7 @@ from bpy.types import PropertyGroup
 from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty, 
                        FloatVectorProperty, FloatProperty)
 from .utils import get_operator_presets, get_preset_index, preset_enum_items_refs
+import os 
 
 # Groups together all the addon settings that are saved in each .blend file
 class BatchExportSettings(PropertyGroup):
@@ -23,10 +24,11 @@ class BatchExportSettings(PropertyGroup):
         description="Directory where export files will be copied to",
         default="//",
         subtype='DIR_PATH',
+        options={'PATH_SUPPORTS_BLEND_RELATIVE'},
     )
     prefix: StringProperty(
         name="Prefix",
-        description="Text to put at the beginning of all the exported file names",
+        description=f"Text to put at the beginning of all the exported file names.\nSupports subdirectories with '{os.sep}' as separator.",
     )
     suffix: StringProperty(
         name="Suffix",

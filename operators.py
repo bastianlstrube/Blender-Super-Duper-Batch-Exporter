@@ -328,12 +328,21 @@ class EXPORT_MESH_OT_batch(Operator):
                 settings.apply_mods = True
                 # THIS DOESNT WORK settings.object_types.EMPTY = True
 
-
+        # Final File Name
         prefix = settings.prefix
+        # Check Prefix for Subdirectories
+        prefixroot = os.path.dirname( os.path.join(base_dir, prefix) )
+        if not os.path.exists(prefixroot):
+            try:
+                os.makedirs(prefixroot)
+                print(f"Directory created: {prefixroot}")
+            except OSError as e:
+                self.report({'ERROR'}, f"Error creating directory {prefixroot}: {e}")
         suffix = settings.suffix
         name = prefix + bpy.path.clean_name(itemname) + suffix
         fp = os.path.join(base_dir, name)
         extension = None
+        
         # Export
 
         if settings.file_format == "ABC":
@@ -810,7 +819,7 @@ class EXPORT_MESH_OT_batch(Operator):
         
         if settings.file_format == "FBX":
             ext = '.fbx'
-            # options = utils.load_operator_preset('export_scene.fbx', settings.fbx_preset)
+            options = utils.load_operator_preset('export_scene.fbx', settings.fbx_preset)
             options.update({
                 "filepath": str(filepath_no_ext) + ext,
                 "use_selection": True,
@@ -820,7 +829,7 @@ class EXPORT_MESH_OT_batch(Operator):
         
         elif settings.file_format == "glTF":
             ext = '.glb'
-            # options = utils.load_operator_preset('export_scene.gltf', settings.gltf_preset)
+            options = utils.load_operator_preset('export_scene.gltf', settings.gltf_preset)
             options.update({
                 "filepath": str(filepath_no_ext),
                 "use_selection": True,
@@ -828,7 +837,58 @@ class EXPORT_MESH_OT_batch(Operator):
             })
             bpy.ops.export_scene.gltf(**options)
             
-        # ... Add other file formats (OBJ, USD, ABC, etc.) here in the same pattern ...
+        elif settings.file_format == "ABC":
+            extension = '.abc'
+            options = utils.load_operator_preset(
+                'wm.alembic_export', settings.abc_preset)
+            options["filepath"] = fp+extension
+            options["selected"] = True
+            options["start"] = settings.frame_start
+            options["end"] = settings.frame_end
+            # By default, alembic_export operator runs in the background, this messes up batch
+            # export though. alembic_export has an "as_background_job" arg that can be set to
+            # false to disable it, but its marked deprecated, saying that if you EXECUTE the
+            # operator rather than INVOKE it it runs in the foreground. Here I change the
+            # execution context to EXEC_REGION_WIN.
+            # docs.blender.org/api/current/bpy.ops.html?highlight=exec_default#execution-context
+            bpy.ops.wm.alembic_export('EXEC_REGION_WIN', **options)
+
+        elif settings.file_format == "USD":
+            extension = settings.usd_format
+            options = utils.load_operator_preset(
+                'wm.usd_export', settings.usd_preset)
+            options["filepath"] = fp+extension
+            options["selected_objects_only"] = True
+            bpy.ops.wm.usd_export(**options)
+
+        elif settings.file_format == "SVG":
+            extension = '.svg'
+            bpy.ops.wm.gpencil_export_svg(
+                filepath=fp+extension, selected_object_type='SELECTED')
+
+        elif settings.file_format == "PDF":
+            extension = '.pdf'
+            bpy.ops.wm.gpencil_export_pdf(
+                filepath=fp+extension, selected_object_type='SELECTED')
+
+        elif settings.file_format == "OBJ":
+            extension = '.obj'
+            options = utils.load_operator_preset(
+                'wm.obj_export', settings.obj_preset)
+            options["filepath"] = fp+extension
+            options["export_selected_objects"] = True
+            options["apply_modifiers"] = settings.apply_mods
+            bpy.ops.wm.obj_export(**options)
+
+        elif settings.file_format == "PLY":
+            extension = '.ply'
+            bpy.ops.wm.ply_export(
+                filepath=fp+extension, ascii_format=settings.ply_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
+
+        elif settings.file_format == "STL":
+            extension = '.stl'
+            bpy.ops.wm.stl_export(
+                filepath=fp+extension, ascii_format=settings.stl_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
         
         else:
             return None # Unsupported format
@@ -872,6 +932,187 @@ class EXPORT_MESH_OT_batch(Operator):
             self.report({'INFO'}, f"Exported {self.file_count} file(s) and made {self.copy_count} copies.")
         else:
             self.report({'INFO'}, f"Successfully exported {self.file_count} file(s).")
+
+
+    # --- Individual Export Functions ---
+    # Each function is now standardized to build an 'options' dictionary
+    # and unpack it when calling the export operator.
+    
+    def export_fbx(settings, filepath):
+        """Exports selected objects to FBX format."""
+        ext = '.fbx'
+        options = utils.load_operator_preset('export_scene.fbx', settings.fbx_preset)
+        options.update({
+            "filepath": filepath + ext,
+            "use_selection": True,
+            "use_mesh_modifiers": settings.apply_mods
+        })
+        bpy.ops.export_scene.fbx(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_gltf(settings, filepath):
+        """Exports selected objects to glTF/GLB format."""
+        ext = '.glb'
+        options = utils.load_operator_preset('export_scene.gltf', settings.gltf_preset)
+        options.update({
+            "filepath": filepath + ext,
+            "export_format": 'GLB',
+            "use_selection": True,
+            "export_apply": settings.apply_mods
+        })
+        bpy.ops.export_scene.gltf(**options)
+        print(f"Successfully exported to {filepath + ext}")
+        
+    def export_alembic(settings, filepath):
+        """Exports selected objects to Alembic format."""
+        ext = '.abc'
+        options = utils.load_operator_preset('wm.alembic_export', settings.abc_preset)
+        options.update({
+            "filepath": filepath + ext,
+            "selected": True,
+            "start": settings.frame_start,
+            "end": settings.frame_end
+        })
+        # Alembic export is executed directly to ensure it runs in the foreground.
+        bpy.ops.wm.alembic_export('EXEC_DEFAULT', **options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_usd(settings, filepath):
+        """Exports selected objects to USD format."""
+        ext = settings.usd_format
+        options = utils.load_operator_preset('wm.usd_export', settings.usd_preset)
+        options.update({
+            "filepath": filepath + ext,
+            "selected_objects_only": True
+        })
+        bpy.ops.wm.usd_export(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_svg(settings, filepath):
+        """Exports selected Grease Pencil objects to SVG format."""
+        ext = '.svg'
+        # Standardize by creating an options dictionary.
+        # No preset is used for SVG, so we build the options directly.
+        options = {}
+        options.update({
+            "filepath": filepath + ext,
+            "selected_object_type": 'SELECTED'
+        })
+        bpy.ops.wm.gpencil_export_svg(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_pdf(settings, filepath):
+        """Exports selected Grease Pencil objects to PDF format."""
+        ext = '.pdf'
+        # Standardize by creating an options dictionary.
+        options = {}
+        options.update({
+            "filepath": filepath + ext,
+            "selected_object_type": 'SELECTED'
+        })
+        bpy.ops.wm.gpencil_export_pdf(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_obj(settings, filepath):
+        """Exports selected objects to OBJ format."""
+        ext = '.obj'
+        options = utils.load_operator_preset('wm.obj_export', settings.obj_preset)
+        options.update({
+            "filepath": filepath + ext,
+            "export_selected_objects": True,
+            "apply_modifiers": settings.apply_mods
+        })
+        bpy.ops.wm.obj_export(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_ply(settings, filepath):
+        """Exports selected objects to PLY format."""
+        ext = '.ply'
+        # Standardize with an options dictionary. No preset was used originally.
+        options = {}
+        options.update({
+            "filepath": filepath + ext,
+            "ascii_format": settings.ply_ascii,
+            "export_selected_objects": True,
+            "apply_modifiers": settings.apply_mods
+        })
+        bpy.ops.wm.ply_export(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    def export_stl(settings, filepath):
+        """Exports selected objects to STL format."""
+        ext = '.stl'
+        # Standardize with an options dictionary. No preset was used originally.
+        options = {}
+        options.update({
+            "filepath": filepath + ext,
+            "ascii_format": settings.stl_ascii,
+            "export_selected_objects": True,
+            "apply_modifiers": settings.apply_mods
+        })
+        bpy.ops.wm.stl_export(**options)
+        print(f"Successfully exported to {filepath + ext}")
+    
+    
+    # --- Dispatch Dictionary and Main Execution ---
+    
+    # This dictionary maps the file format string from settings to the
+    # corresponding export function defined above.
+    FORMAT_DISPATCHER = {
+        "FBX": export_fbx,
+        "glTF": export_gltf,
+        "ABC": export_alembic,
+        "USD": export_usd,
+        "SVG": export_svg,
+        "PDF": export_pdf,
+        "OBJ": export_obj,
+        "PLY": export_ply,
+        "STL": export_stl,
+    }
+    
+    def run_export(settings, filepath_no_ext):
+        """
+        Looks up the correct export function from the dispatcher and executes it.
+    
+        :param settings: An object containing the export settings (e.g., file_format).
+        :param filepath_no_ext: The base filepath for the export without an extension.
+        """
+        # Get the correct export function from the dispatcher.
+        export_function = FORMAT_DISPATCHER.get(settings.file_format)
+    
+        if export_function:
+            try:
+                # If the format is found, call its function.
+                print(f"Starting export for format: {settings.file_format}...")
+                export_function(settings, filepath_no_ext)
+            except Exception as e:
+                print(f"Error during export of {settings.file_format}: {e}")
+        else:
+            # Handle the case where the format is not supported.
+            print(f"Error: Unsupported file format '{settings.file_format}'")
+    
+    # --- Example Usage ---
+    # To use this script, you would define a 'settings' object and a filepath,
+    # then call the main run_export function.
+    
+    # class MockSettings:
+    #     """A mock class to simulate the settings object for testing."""
+    #     def __init__(self):
+    #         self.file_format = "OBJ"
+    #         self.obj_preset = "Operator Defaults" # Example preset
+    #         self.apply_mods = True
+    
+    # if __name__ == "__main__":
+    #     # This is a dummy block to show how you might run the script.
+    #     # In Blender, this would be triggered by a UI panel or operator.
+    #     mock_settings = MockSettings()
+    #     output_path = "/tmp/my_blender_export" # Dummy path
+        
+    #     # Ensure you have an object selected in Blender before running
+    #     if bpy.context.selected_objects:
+    #         run_export(mock_settings, output_path)
+    #     else:
+    #         print("Please select an object to export.")
 
 
 '''
