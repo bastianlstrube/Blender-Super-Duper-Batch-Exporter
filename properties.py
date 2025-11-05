@@ -1,9 +1,49 @@
 import bpy
+from pathlib import Path
 from bpy.types import PropertyGroup
 from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty, 
                        FloatVectorProperty, FloatProperty)
 from .utils import get_operator_presets, get_preset_index, preset_enum_items_refs
 import os 
+
+def update_directory_relative(self, context):
+    """
+    If a Project Directory is set, try to make the export directory 
+    relative to it automatically when the user picks a folder.
+    """
+    # 1. Get the Project Directory from Preferences
+    # We use __package__ directly. It should match the key in addons, 
+    # whether it's a legacy addon or a new blender extension.
+    addon_name = __package__
+        
+    prefs = context.preferences.addons[addon_name].preferences
+    if not prefs or not getattr(prefs, 'project_dir', ''):
+        return
+
+    # 2. Resolve standard paths
+    # Use os.path.abspath/Path().resolve() to ensure we have clean, absolute paths for comparison
+    project_root = Path(bpy.path.abspath(prefs.project_dir)).resolve()
+    current_path = Path(bpy.path.abspath(self.directory)).resolve()
+
+    # 3. Check if the current path is inside the project root
+    try:
+        # Attempt to find the relative path. 
+        # If current_path is NOT inside project_root, this raises ValueError.
+        relative_path = current_path.relative_to(project_root)
+        
+        # 4. Update the property if it actually changed to avoid infinite recursion
+        # relative_to returns '.' if paths are identical; we prefer empty string for the UI
+        new_path_str = str(relative_path)
+        if new_path_str == '.': 
+             new_path_str = ""
+
+        if self.directory != new_path_str:
+            self.directory = new_path_str
+
+    except ValueError:
+        # The selected path was NOT inside the project directory.
+        # Leave it alone (it will remain absolute or relative to .blend).
+        pass
 
 # Groups together all the addon settings that are saved in each .blend file
 class BatchExportSettings(PropertyGroup):
@@ -11,9 +51,10 @@ class BatchExportSettings(PropertyGroup):
     # File Settings:
     directory: StringProperty(
         name="Directory",
-        description="Which folder to place the exported files\nDefault of // will export to same directory as the blend file (only works if the blend file is saved)",
+        description="Folder to place the exported files.\nIf a 'Project Directory' is set in Preferences, this is relative to that.\nOtherwise, '//' is relative to the .blend file.",
         default="//",
         subtype='DIR_PATH',
+        update=update_directory_relative,
     )
     copy_on_export: BoolProperty(
         name="Make Copies",
