@@ -210,13 +210,11 @@ class BatchExportSettings(PropertyGroup):
     )
     frame_start: IntProperty(
         name="Frame Start",
-        min=0,
         description="First frame to export",
         default = 1,
     )
     frame_end: IntProperty(
         name="Frame End",
-        min=0,
         description="Last frame to export",
         default = 1,
     )
