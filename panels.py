@@ -123,7 +123,7 @@ def draw_settings(self, context):
         if settings.create_lod:
             col.prop(settings, 'lod_count')
             for count in range(settings.lod_count):
-                prop_name = f'lod{count+1}_ratio' 
+                prop_name = f'lod{count+1}_ratio'
                 col.prop(settings, prop_name)
 
 
@@ -131,10 +131,10 @@ def draw_settings(self, context):
 # 3D Viewport Header or Top Bar
 def draw_popover(self, context):
 
-    # Get custom icon        
+    # Get custom icon
     icon_id = get_icon_id("batchexport_icon")
 
-    try:    
+    try:
         prefs = None
         name = get_addon_name_from_bl_info()
         if get_addon_name_from_bl_info() in context.preferences.addons:
@@ -150,10 +150,10 @@ def draw_popover(self, context):
                 row.operator('export_mesh.batch', text='', icon='EXPORT').invoke(context, 'DEFAULT')
             row.popover(panel='POPOVER_PT_batch_export', text='')
             return
-            
+
         # Check if we should draw based on menu type
         draw_in_current_menu = False
-        
+
         if hasattr(self, 'bl_space_type'):
             if self.bl_space_type == 'TOPBAR' and prefs.addon_location == 'TOPBAR':
                 draw_in_current_menu = True
@@ -165,7 +165,7 @@ def draw_popover(self, context):
                 draw_in_current_menu = True
             elif 'VIEW3D' in self.__class__.__name__ and prefs.addon_location == '3DHEADER':
                 draw_in_current_menu = True
-        
+
         if draw_in_current_menu:
             row = self.layout.row()
             row = row.row(align=True)
@@ -191,12 +191,12 @@ class VIEW3D_PT_batch_export(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Export"
-    bl_label = "Batch Export"
+    bl_label = "Super Duper Batch Exporter"
 
     @classmethod
     def poll(cls, context):
         try:
-            
+
             name = get_addon_name_from_bl_info()
             if name in context.preferences.addons:
                 prefs = context.preferences.addons[name].preferences
@@ -204,7 +204,7 @@ class VIEW3D_PT_batch_export(Panel):
                 if not hasattr(prefs, 'addon_location'):
                     return True
                 return prefs.addon_location == '3DSIDE'
-                
+
             # If we can't find preferences, show the panel anyway as a fallback
             return True
         except Exception as e:
@@ -224,8 +224,8 @@ class VIEW3D_PT_batch_export(Panel):
 class POPOVER_PT_batch_export(Panel):
     bl_space_type = 'TOPBAR'
     bl_region_type = 'HEADER'
-    bl_label = "Batch Export"
-    
+    bl_label = "Super Duper Batch Exporter"
+
     @classmethod
     def poll(cls, context):
         try:
