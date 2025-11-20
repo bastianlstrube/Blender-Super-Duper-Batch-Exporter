@@ -1,21 +1,21 @@
 import bpy
 from pathlib import Path
 from bpy.types import PropertyGroup
-from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty, 
+from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty,
                        FloatVectorProperty, FloatProperty)
 from .utils import get_operator_presets, get_preset_index, preset_enum_items_refs
-import os 
+import os
 
 def update_directory_relative(self, context):
     """
-    If a Project Directory is set, try to make the export directory 
+    If a Project Directory is set, try to make the export directory
     relative to it automatically when the user picks a folder.
     """
     # 1. Get the Project Directory from Preferences
-    # We use __package__ directly. It should match the key in addons, 
+    # We use __package__ directly. It should match the key in addons,
     # whether it's a legacy addon or a new blender extension.
     addon_name = __package__
-        
+
     prefs = context.preferences.addons[addon_name].preferences
     if not prefs or not getattr(prefs, 'project_dir', ''):
         return
@@ -27,14 +27,14 @@ def update_directory_relative(self, context):
 
     # 3. Check if the current path is inside the project root
     try:
-        # Attempt to find the relative path. 
+        # Attempt to find the relative path.
         # If current_path is NOT inside project_root, this raises ValueError.
         relative_path = current_path.relative_to(project_root)
-        
+
         # 4. Update the property if it actually changed to avoid infinite recursion
         # relative_to returns '.' if paths are identical; we prefer empty string for the UI
         new_path_str = str(relative_path)
-        if new_path_str == '.': 
+        if new_path_str == '.':
              new_path_str = ""
 
         if self.directory != new_path_str:
@@ -65,7 +65,7 @@ class BatchExportSettings(PropertyGroup):
         description="Directory where export files will be copied to",
         default="//",
         subtype='DIR_PATH',
-        options={'PATH_SUPPORTS_BLEND_RELATIVE'},
+        #options={'PATH_SUPPORTS_BLEND_RELATIVE'},
     )
     prefix: StringProperty(
         name="Prefix",
@@ -247,7 +247,7 @@ class BatchExportSettings(PropertyGroup):
     set_scale: BoolProperty(name="Set Scale", default=False)
     scale: FloatVectorProperty(
         name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
-    
+
     # LOD Creation:
     create_lod: BoolProperty(
         name="Create LOD", default=False,
@@ -259,22 +259,22 @@ class BatchExportSettings(PropertyGroup):
         default=4, min=1, max=4,
     )
     lod1_ratio: FloatProperty(
-        name="LOD 1 Ratio", 
+        name="LOD 1 Ratio",
         description="Decimate factor for LOD 1",
         default=0.80, min=0.0, max=1.0, subtype="FACTOR"
     )
     lod2_ratio: FloatProperty(
-        name="LOD 2 Ratio", 
+        name="LOD 2 Ratio",
         description="Decimate factor for LOD 2",
         default=0.50, min=0.0, max=1.0, subtype="FACTOR"
     )
     lod3_ratio: FloatProperty(
-        name="LOD 3 Ratio", 
+        name="LOD 3 Ratio",
         description="Decimate factor for LOD 3",
         default=0.20, min=0.0, max=1.0, subtype="FACTOR"
     )
     lod4_ratio: FloatProperty(
-        name="LOD 4 Ratio", 
+        name="LOD 4 Ratio",
         description="Decimate factor for LOD 4",
         default=0.10, min=0.0, max=1.0, subtype="FACTOR"
     )
