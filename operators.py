@@ -650,9 +650,9 @@ class EXPORT_MESH_OT_batch(Operator):
         
         try:
             for obj in objects_to_transform:
-                # Don't apply transforms to children if we are exporting PARENT_OBJECTS,
+                # Don't apply transforms to children if their parent is also being exported,
                 # otherwise double-transforms might occur depending on exporter settings.
-                is_child_of_selected = "PARENT" in settings.mode and obj.parent in objects_to_transform
+                is_child_of_selected = obj.parent in objects_to_transform
                 if not is_child_of_selected:
                     if settings.set_location: obj.location = settings.location
                     if settings.set_rotation: obj.rotation_euler = settings.rotation
