@@ -7,6 +7,11 @@ One click export to multiple files. Options are set once and stored with blend f
 ### Export Options
 Use existing export presets, set options like **Output Directory**, **Prefix**, **Suffix**, filter by **Type** or set object **Location**, **Rotation** or **Scale** on export. 
 
+In object-based modes, collection naming supports:
+- **Prefix Collection Name**: add collection name to the exported filename.
+- **Use Collection as Subfolder**: export into a collection-named subfolder.
+- These options can be enabled independently or together.
+
 **Mode** exports a file for each:
 - **Object**
 - **Parent Object**

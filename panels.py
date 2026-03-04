@@ -60,6 +60,7 @@ def draw_settings(self, context):
     col.prop(settings, 'limit')
     if 'OBJECT' in settings.mode:
         col.prop(settings, 'prefix_collection')
+        col.prop(settings, 'collection_as_subfolder')
     if 'SUBDIR' in settings.mode:
         col.prop(settings, 'full_hierarchy')
     self.layout.separator()

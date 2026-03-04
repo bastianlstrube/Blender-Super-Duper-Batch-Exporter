@@ -123,6 +123,10 @@ class BatchExportSettings(PropertyGroup):
         name="Prefix Collection Name",
         description="Adds the containing collection's name to the exported file's name, after the 'prefix'"
     )
+    collection_as_subfolder: BoolProperty(
+        name="Use Collection as Subfolder",
+        description="Uses the containing collection name as a subfolder in the export directory (can be combined with Prefix Collection Name)"
+    )
     full_hierarchy: BoolProperty(
         name="Full Hierarchy",
         description="Create Sub-Directories for the Collection and Parent Collections,\nrecreating the hierarchy"

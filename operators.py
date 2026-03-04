@@ -271,6 +271,24 @@ class EXPORT_MESH_OT_batch(Operator):
 
     def export_selection(self, itemname, context, base_dir):
         settings = context.scene.batch_export
+        selected_objects = context.selected_objects
+
+        collection_name = None
+        if 'OBJECT' in settings.mode and selected_objects:
+            collection_name = selected_objects[0].users_collection[0].name
+
+            if collection_name != 'Scene Collection':
+                if settings.collection_as_subfolder:
+                    base_dir = os.path.join(base_dir, collection_name)
+                    if not os.path.exists(base_dir):
+                        try:
+                            os.makedirs(base_dir)
+                            print(f"Directory created: {base_dir}")
+                        except OSError as e:
+                            self.report({'ERROR'}, f"Error creating directory {base_dir}: {e}")
+                if settings.prefix_collection:
+                    itemname = "_".join([collection_name, itemname])
+
         # save the transform to be reset later:
         old_locations = []
         old_rotations = []
@@ -297,12 +315,6 @@ class EXPORT_MESH_OT_batch(Operator):
                     obj.rotation_euler = settings.rotation
                 if settings.set_scale:
                     obj.scale = settings.scale
-
-            # Change Itemname If Collection As Prefix
-            if settings.prefix_collection and 'OBJECT' in settings.mode:
-                collection_name = obj.users_collection[0].name
-                if not collection_name == 'Scene Collection':
-                    itemname = "_".join([collection_name, itemname])
 
             # LOD Creation
             if settings.create_lod and settings.file_format == 'FBX' and obj.type == 'MESH':
