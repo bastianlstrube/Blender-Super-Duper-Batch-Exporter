@@ -125,7 +125,7 @@ class BatchExportSettings(PropertyGroup):
     )
     collection_as_subfolder: BoolProperty(
         name="Use Collection as Subfolder",
-        description="Uses the containing collection name as a subfolder in the export directory (can be combined with Prefix Collection Name)"
+        description="Uses the containing collection name as a subfolder in the export directory"
     )
     full_hierarchy: BoolProperty(
         name="Full Hierarchy",
