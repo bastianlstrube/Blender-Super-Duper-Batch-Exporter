@@ -88,6 +88,7 @@ def draw_settings(self, context):
         self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'FBX':
         col.prop(settings, 'fbx_preset_enum')
+        col.prop(settings, 'fbx_unity_transform')
         self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'glTF':
         col.prop(settings, 'gltf_preset_enum')

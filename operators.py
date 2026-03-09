@@ -431,6 +431,9 @@ class EXPORT_MESH_OT_batch(Operator):
             options["filepath"] = fp+extension
             options["use_selection"] = True
             options["use_mesh_modifiers"] = settings.apply_mods
+            if settings.fbx_unity_transform:
+                options["apply_scale_options"] = 'FBX_SCALE_ALL'
+                options["bake_space_transform"] = True
             bpy.ops.export_scene.fbx(**options)
 
             # LOD De-Creation
@@ -1003,6 +1006,9 @@ class EXPORT_MESH_OT_batch(Operator):
             "use_selection": True,
             "use_mesh_modifiers": settings.apply_mods
         })
+        if settings.fbx_unity_transform:
+            options["apply_scale_options"] = 'FBX_SCALE_ALL'
+            options["bake_space_transform"] = True
         bpy.ops.export_scene.fbx(**options)
         return full_path
     

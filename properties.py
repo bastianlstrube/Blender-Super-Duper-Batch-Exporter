@@ -183,6 +183,11 @@ class BatchExportSettings(PropertyGroup):
         set=lambda self, value: setattr(
             self, 'obj_preset', preset_enum_items_refs['wm.obj_export'][value][0]),
     )
+    fbx_unity_transform: BoolProperty(
+        name="Unity Transform Fix",
+        description="Bake axis conversion and apply scale so objects import into Unity with rotation (0,0,0) and scale (1,1,1).\nSets apply_scale_options to FBX_SCALE_ALL and bake_space_transform to True",
+        default=False,
+    )
     fbx_preset: StringProperty(default='NO_PRESET')
     fbx_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
