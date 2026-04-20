@@ -23,7 +23,7 @@ def get_addon_name_from_bl_info():
 # Draws the .blend file specific settings used in the
 # Popover panel or Side Panel panel
 def draw_settings(self, context):
-    self.layout.use_property_split = True
+    self.layout.use_property_split = False
     self.layout.use_property_decorate = False
     settings = context.scene.batch_export
     self.layout.operator_context = 'INVOKE_DEFAULT'
@@ -41,6 +41,8 @@ def draw_settings(self, context):
         self.layout.operator('export_mesh.batch', icon_value=icon_id)
     else:
         self.layout.operator('export_mesh.batch', icon='EXPORT')
+    
+    # Options
     self.layout.separator()
     col = self.layout.column(align=True)
     col.prop(settings, 'directory')
@@ -225,6 +227,7 @@ class POPOVER_PT_batch_export(Panel):
     bl_space_type = 'TOPBAR'
     bl_region_type = 'HEADER'
     bl_label = "Super Duper Batch Exporter"
+    bl_ui_units_x = 12
 
     @classmethod
     def poll(cls, context):
