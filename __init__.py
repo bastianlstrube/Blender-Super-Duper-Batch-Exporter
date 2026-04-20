@@ -17,6 +17,7 @@ from bpy.props import PointerProperty
 from bpy.utils import register_class, unregister_class, previews
 import importlib
 import os
+import bpy
 
 module_names = [
     "preferences",
@@ -69,9 +70,12 @@ def register():
     pcoll = previews.new()
     custom_icons = pcoll
     icons_dir = os.path.join(os.path.dirname(__file__), "icons")
-    pcoll.load("batchexport_icon", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
-    preview_collections["main"] = pcoll
-
+    
+    # Load both variations
+    pcoll.load("batchexport_icon_light", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
+    pcoll.load("batchexport_icon_dark", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon_DarkTheme.png"), 'IMAGE')
+    #pcoll.load("batchexport_icon", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
+    
     register_unregister_modules(module_names, True)
 
     # Add batch export settings to Scene type
@@ -99,8 +103,36 @@ def unregister():
     # Remove properties
     #del bpy.types.Scene.batch_export  # THIS SHOULD BE ADDED AS A BUTTON IN THE PREFERENCES INSTEAD
 
+def is_dark_theme():
+    """Calculates the luminance of the UI to determine if the theme is dark."""
+    theme = bpy.context.preferences.themes[0]
+
+    # Sample "Themes > User Interface > Tool > Inner"
+    bg_color = theme.user_interface.wcol_tool.inner
+    
+    luminance = (0.299 * bg_color[0]) + (0.587 * bg_color[1]) + (0.114 * bg_color[2])
+    return luminance < 0.35
+
+def get_icon_id(icon_name):
+    """Helper function to get icon ID, switching based on theme luminance"""
+    if "main" in preview_collections:
+        pcoll = preview_collections["main"]
+        
+        # Append suffix based on current theme
+        suffix = "_dark" if is_dark_theme() else "_light"
+        theme_icon_name = f"{icon_name}{suffix}"
+        
+        if theme_icon_name in pcoll:
+            return pcoll[theme_icon_name].icon_id
+        elif icon_name in pcoll:
+            return pcoll[icon_name].icon_id
+            
+    return 0
+
+'''
 def get_icon_id(icon_name):
     """Helper function to get icon ID"""
     if "main" in preview_collections and icon_name in preview_collections["main"]:
         return preview_collections["main"][icon_name].icon_id
     return 0
+'''
