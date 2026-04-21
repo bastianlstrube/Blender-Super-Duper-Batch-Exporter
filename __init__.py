@@ -68,7 +68,7 @@ def register():
     # icon registration
     global preview_collections
     pcoll = previews.new()
-    custom_icons = pcoll
+    preview_collections["main"] = pcoll 
     icons_dir = os.path.join(os.path.dirname(__file__), "icons")
     
     # Load both variations
@@ -118,14 +118,13 @@ def get_icon_id(icon_name):
     if "main" in preview_collections:
         pcoll = preview_collections["main"]
         
-        # Append suffix based on current theme
+        # Determine if we need the light or dark version
+        # Note: Your register() loads 'batchexport_icon_light' and 'batchexport_icon_dark'
         suffix = "_dark" if is_dark_theme() else "_light"
         theme_icon_name = f"{icon_name}{suffix}"
         
         if theme_icon_name in pcoll:
             return pcoll[theme_icon_name].icon_id
-        elif icon_name in pcoll:
-            return pcoll[icon_name].icon_id
             
     return 0
 
