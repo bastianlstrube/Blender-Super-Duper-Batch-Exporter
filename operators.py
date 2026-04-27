@@ -19,7 +19,7 @@ class EXPORT_MESH_OT_batch(Operator):
     def execute(self, context):
         settings = context.scene.batch_export
 
-# 1. Get Project Directory from Preferences
+        # 1. Get Project Directory from Preferences
         name = __package__
         pref_project_dir = ""
         if name in context.preferences.addons:
@@ -70,8 +70,11 @@ class EXPORT_MESH_OT_batch(Operator):
         mode = ''
         if obj_active:
             mode = obj_active.mode
-            bpy.ops.object.mode_set(mode='OBJECT')  # Only works in Object mode
-        
+            if mode != 'OBJECT':
+                try:
+                    bpy.ops.object.mode_set(mode='OBJECT')  # Only works in Object mode
+                except RuntimeError:
+                    self.report({'WARNING'}, f"Could not change mode for {obj_active.name}")
 
         ##### EXPORT OBJECTS BASED ON MODES #####
         if settings.mode == 'OBJECTS':
@@ -176,8 +179,21 @@ class EXPORT_MESH_OT_batch(Operator):
         view_layer.objects.active = obj_active
 
         # Return to whatever mode the user was in
-        if obj_active:
-            bpy.ops.object.mode_set(mode=mode)
+        #if obj_active:
+        #    bpy.ops.object.mode_set(mode=mode)
+        # Return to whatever mode the user was in
+        if obj_active and mode != 'OBJECT':
+            # Check if the object is local (not linked) and not a system override
+            # Linked objects/overrides generally cannot leave OBJECT mode
+            is_editable = not obj_active.library and not (obj_active.override_library and obj_active.override_library.is_system_override)
+            
+            if is_editable:
+                try:
+                    bpy.ops.object.mode_set(mode=mode)
+                except RuntimeError:
+                    self.report({'WARNING'}, f"Restoring mode failed for {obj_active.name}")
+            else:
+                self.report({'INFO'}, f"Object {obj_active.name} is linked; staying in OBJECT mode.")
 
         # Report results
         copies = False
@@ -600,21 +616,27 @@ class EXPORT_MESH_OT_batch(Operator):
             bpy.ops.object.select_all(action='DESELECT')
             yield
         finally:
-            # This finally block ensures cleanup happens even if an error occurs during export
-            if context.view_layer.objects.active and context.view_layer.objects.active.mode != 'OBJECT':
-                 bpy.ops.object.mode_set(mode='OBJECT')
-
+            # 1. Clean up selection first
             bpy.ops.object.select_all(action='DESELECT')
             for obj in original_selection:
                 try:
-                    obj.select_set(True)
+                    if obj.name in context.view_layer.objects:
+                        obj.select_set(True)
                 except RuntimeError:
-                     pass # Object might have been deleted during process
+                     pass 
                      
+            # 2. Restore active object and mode
             if original_active and original_active.name in context.view_layer.objects:
                 view_layer.objects.active = original_active
+                
+                # Only attempt to restore mode if it wasn't OBJECT and object is local
                 if original_mode != 'OBJECT':
-                    bpy.ops.object.mode_set(mode=original_mode)
+                    is_editable = not original_active.library and not (original_active.override_library and original_active.override_library.is_system_override)
+                    if is_editable:
+                        try:
+                            bpy.ops.object.mode_set(mode=original_mode)
+                        except RuntimeError:
+                            pass
 
     @contextmanager
     def temporary_visibility(self, objects):
