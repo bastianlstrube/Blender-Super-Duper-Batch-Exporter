@@ -35,14 +35,14 @@ class EXPORT_MESH_OT_batch(Operator):
             self.report({'ERROR'}, f"Export directory does not exist:\n{base_dir}")
             return {'CANCELLED'}
 
-        # 3. Run the entire export inside a state-preservation context manager
-        with self._preserve_blender_state(context):
+        # 3. Get the master list of objects to consider
+        filtered_objects = self._get_filtered_objects(context, settings)
+        if not filtered_objects:
+            self.report({'WARNING'}, "No objects matched the filter settings.")
+            return {'FINISHED'}
 
-            # 4. Get the master list of objects to consider
-            filtered_objects = self._get_filtered_objects(context, settings)
-            if not filtered_objects:
-                self.report({'WARNING'}, "No objects matched the filter settings.")
-                return {'FINISHED'}
+        # 4. Run the entire export inside a state-preservation context manager
+        with self._preserve_blender_state(context):
 
             # 5. Generate and process each export job
             try:
