@@ -11,14 +11,7 @@ class BATCH_EXPORT_UL_object_list(UIList):
         else:
             layout.label(text="(deleted)", icon='ERROR')
 
-# Get addon name from directory structure
-def get_addon_name():
-    # Get the path of this file
-    path = os.path.dirname(os.path.realpath(__file__))
-    # The addon name is typically the name of the directory containing the addon
-    return os.path.basename(path)
-
-# Alternate method to get addon name - sometimes more reliable
+# Method to get addon name - sometimes more reliable than __package__
 def get_addon_name_from_bl_info():
     # Try to get the addon name from bl_info in the __init__.py
     import sys
@@ -69,15 +62,16 @@ def draw_settings(self, context):
     col.prop(settings, 'mode')
     col.prop(settings, 'limit')
     if settings.limit == 'LIST':
-        self.layout.template_list(
+        list_row = self.layout.row()
+        list_row.template_list(
             "BATCH_EXPORT_UL_object_list", "",
             settings, "export_list",
             settings, "export_list_index",
             rows=4,
         )
-        row = self.layout.row(align=True)
-        row.operator("batch_export.list_add", text="Add Selected", icon='ADD')
-        row.operator("batch_export.list_remove", text="Remove", icon='REMOVE')
+        side = list_row.column(align=True)
+        side.operator("batch_export.list_add", text="", icon='ADD')
+        side.operator("batch_export.list_remove", text="", icon='REMOVE')
     if 'OBJECT' in settings.mode:
         col.prop(settings, 'prefix_collection')
     if 'SUBDIR' in settings.mode:
@@ -87,10 +81,7 @@ def draw_settings(self, context):
     # Settings
     col = self.layout.column()
     col.label(text=settings.file_format + " Settings:")
-    if settings.file_format == 'DAE':
-        col.prop(settings, 'dae_preset_enum')
-        self.layout.prop(settings, 'apply_mods')
-    elif settings.file_format == 'ABC':
+    if settings.file_format == 'ABC':
         col.prop(settings, 'abc_preset_enum')
         col.prop(settings, 'frame_start')
         col.prop(settings, 'frame_end')
@@ -111,9 +102,6 @@ def draw_settings(self, context):
         self.layout.prop(settings, 'apply_mods')
     elif settings.file_format == 'glTF':
         col.prop(settings, 'gltf_preset_enum')
-        self.layout.prop(settings, 'apply_mods')
-    elif settings.file_format == 'X3D':
-        col.prop(settings, 'x3d_preset_enum')
         self.layout.prop(settings, 'apply_mods')
     self.layout.use_property_split = False
     self.layout.separator()

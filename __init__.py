@@ -58,7 +58,7 @@ def register_unregister_modules(module_names: list, register: bool):
 
         if register and hasattr(m, 'register'):
             m.register()
-        elif hasattr(m, 'unregister'):
+        elif not register and hasattr(m, 'unregister'):
             m.unregister()
 
 # icon dict to store.... something in
@@ -100,8 +100,9 @@ def unregister():
     TOPBAR_MT_editor_menus.remove(panels.draw_popover)
     VIEW3D_MT_editor_menus.remove(panels.draw_popover)
 
-    # Remove properties
-    #del bpy.types.Scene.batch_export  # THIS SHOULD BE ADDED AS A BUTTON IN THE PREFERENCES INSTEAD
+    # Note: Scene.batch_export is intentionally NOT deleted on unregister.
+    # Removing it would break access to the user's per-scene settings stored
+    # in the .blend file if the addon is re-enabled in the same session.
 
 def is_dark_theme():
     """Calculates the luminance of the UI to determine if the theme is dark."""
@@ -127,11 +128,3 @@ def get_icon_id(icon_name):
             return pcoll[theme_icon_name].icon_id
             
     return 0
-
-'''
-def get_icon_id(icon_name):
-    """Helper function to get icon ID"""
-    if "main" in preview_collections and icon_name in preview_collections["main"]:
-        return preview_collections["main"][icon_name].icon_id
-    return 0
-'''
