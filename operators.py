@@ -284,6 +284,9 @@ class EXPORT_MESH_OT_batch(Operator):
         elif limit == 'RENDERABLE':
             renderable_names = {obj.name for obj in self._get_renderable_objects(context.scene)}
             source = [obj for obj in context.view_layer.objects if obj.name in renderable_names]
+        elif limit == 'LIST':
+            list_objects = {item.object for item in settings.export_list if item.object is not None}
+            source = [obj for obj in context.view_layer.objects if obj in list_objects]
         else:  # 'ALL'
             source = list(context.view_layer.objects)
 
@@ -620,6 +623,56 @@ class EXPORT_MESH_OT_batch(Operator):
         return full_path
 
 
+class BATCH_EXPORT_OT_list_add(Operator):
+    """Add selected objects to the export list"""
+    bl_idname = "batch_export.list_add"
+    bl_label = "Add Selected to Export List"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.batch_export
+        selected = context.selected_objects
+        if not selected:
+            self.report({'WARNING'}, "No objects selected.")
+            return {'CANCELLED'}
+
+        existing = {item.object for item in settings.export_list if item.object is not None}
+        added = 0
+        for obj in selected:
+            if obj not in existing:
+                item = settings.export_list.add()
+                item.object = obj
+                added += 1
+        if added:
+            settings.export_list_index = len(settings.export_list) - 1
+            self.report({'INFO'}, f"Added {added} object(s) to export list.")
+        else:
+            self.report({'INFO'}, "Selected objects are already in the list.")
+        return {'FINISHED'}
+
+
+class BATCH_EXPORT_OT_list_remove(Operator):
+    """Remove the active object from the export list"""
+    bl_idname = "batch_export.list_remove"
+    bl_label = "Remove from Export List"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        settings = context.scene.batch_export
+        return len(settings.export_list) > 0
+
+    def execute(self, context):
+        settings = context.scene.batch_export
+        idx = settings.export_list_index
+        if 0 <= idx < len(settings.export_list):
+            settings.export_list.remove(idx)
+            settings.export_list_index = max(0, idx - 1)
+        return {'FINISHED'}
+
+
 registry = [
     EXPORT_MESH_OT_batch,
+    BATCH_EXPORT_OT_list_add,
+    BATCH_EXPORT_OT_list_remove,
 ]

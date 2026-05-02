@@ -1,7 +1,15 @@
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, UIList
 from . import get_icon_id
 import os
+
+
+class BATCH_EXPORT_UL_object_list(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_property, index=0, flt_flag=0):
+        if item.object:
+            layout.label(text=item.object.name, icon_value=layout.icon(item.object))
+        else:
+            layout.label(text="(deleted)", icon='ERROR')
 
 # Get addon name from directory structure
 def get_addon_name():
@@ -60,6 +68,16 @@ def draw_settings(self, context):
     col.prop(settings, 'file_format')
     col.prop(settings, 'mode')
     col.prop(settings, 'limit')
+    if settings.limit == 'LIST':
+        self.layout.template_list(
+            "BATCH_EXPORT_UL_object_list", "",
+            settings, "export_list",
+            settings, "export_list_index",
+            rows=4,
+        )
+        row = self.layout.row(align=True)
+        row.operator("batch_export.list_add", text="Add Selected", icon='ADD')
+        row.operator("batch_export.list_remove", text="Remove", icon='REMOVE')
     if 'OBJECT' in settings.mode:
         col.prop(settings, 'prefix_collection')
     if 'SUBDIR' in settings.mode:
@@ -258,6 +276,7 @@ class POPOVER_PT_batch_export(Panel):
 
 
 registry = [
+    BATCH_EXPORT_UL_object_list,
     POPOVER_PT_batch_export,
     VIEW3D_PT_batch_export,
 ]

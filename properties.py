@@ -2,7 +2,8 @@ import bpy
 from pathlib import Path
 from bpy.types import PropertyGroup
 from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty,
-                       FloatVectorProperty, FloatProperty)
+                       FloatVectorProperty, FloatProperty, CollectionProperty,
+                       PointerProperty)
 from .utils import get_operator_presets, get_preset_index, preset_enum_items_refs
 import os
 
@@ -44,6 +45,13 @@ def update_directory_relative(self, context):
         # The selected path was NOT inside the project directory.
         # Leave it alone (it will remain absolute or relative to .blend).
         pass
+
+class ExportObjectItem(PropertyGroup):
+    object: PointerProperty(
+        name="Object",
+        type=bpy.types.Object,
+    )
+
 
 # Groups together all the addon settings that are saved in each .blend file
 class BatchExportSettings(PropertyGroup):
@@ -116,9 +124,12 @@ class BatchExportSettings(PropertyGroup):
         items=[
             ("VISIBLE", "Visible", "", 1),
             ("SELECTED", "Selected", "", 2),
-            ("RENDERABLE", "Render Enabled", "", 3)
+            ("RENDERABLE", "Render Enabled", "", 3),
+            ("LIST", "List", "Export only objects added to the custom list", 4),
         ],
     )
+    export_list: CollectionProperty(type=ExportObjectItem)
+    export_list_index: IntProperty(name="Active Object Index", default=0)
     prefix_collection: BoolProperty(
         name="Prefix Collection Name",
         description="Adds the containing collection's name to the exported file's name, after the 'prefix'"
@@ -280,5 +291,6 @@ class BatchExportSettings(PropertyGroup):
     )
 
 registry = [
+    ExportObjectItem,
     BatchExportSettings,
 ]
