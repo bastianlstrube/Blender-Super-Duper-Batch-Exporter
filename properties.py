@@ -258,6 +258,22 @@ class BatchExportSettings(PropertyGroup):
     set_scale: BoolProperty(name="Set Scale", default=False)
     scale: FloatVectorProperty(
         name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
+    apply_location: BoolProperty(
+        name="Apply Location", default=False,
+        description="Bake the object's location into the mesh data before export",
+    )
+    apply_rotation: BoolProperty(
+        name="Apply Rotation", default=False,
+        description="Bake the object's rotation into the mesh data before export",
+    )
+    apply_scale: BoolProperty(
+        name="Apply Scale", default=False,
+        description="Bake the object's scale into the mesh data before export",
+    )
+    corrective_flip_normals: BoolProperty(
+        name="Corrective Flip Normals", default=True,
+        description="When applying a negative scale, flip mesh normals so faces stay outward-facing",
+    )
 
     # LOD Creation:
     create_lod: BoolProperty(

@@ -183,6 +183,86 @@ class EXPORT_MESH_OT_batch(Operator):
                     obj.scale = scale
 
     @contextmanager
+    def _temporary_apply_transform(self, settings, objects_to_apply):
+        """
+        Bakes object transforms into a temporary copy of each object's data
+        so the export reflects the apply, but the scene is left untouched.
+        """
+        if not (settings.apply_location or settings.apply_rotation or settings.apply_scale):
+            yield
+            return
+
+        backups = {}  # obj -> original data
+        flip_targets = []  # mesh objects with negative-determinant scale
+
+        for obj in objects_to_apply:
+            if obj is None or obj.data is None or not hasattr(obj.data, 'copy'):
+                continue
+            # Skip linked / system-overridden objects — we can't edit their data.
+            if obj.library or (obj.override_library and obj.override_library.is_system_override):
+                continue
+            backups[obj] = obj.data
+            obj.data = obj.data.copy()
+            if (
+                settings.apply_scale
+                and settings.corrective_flip_normals
+                and obj.type == 'MESH'
+                and (obj.scale.x * obj.scale.y * obj.scale.z) < 0.0
+            ):
+                flip_targets.append(obj)
+
+        try:
+            if backups:
+                bpy.ops.object.select_all(action='DESELECT')
+                for obj in backups:
+                    try:
+                        obj.select_set(True)
+                    except RuntimeError:
+                        pass
+                # Active must be set for transform_apply.
+                first = next(iter(backups))
+                bpy.context.view_layer.objects.active = first
+
+                try:
+                    bpy.ops.object.transform_apply(
+                        location=settings.apply_location,
+                        rotation=settings.apply_rotation,
+                        scale=settings.apply_scale,
+                        properties=False,
+                    )
+                except RuntimeError as e:
+                    print(f"transform_apply failed: {e}")
+
+                for obj in flip_targets:
+                    mesh = obj.data
+                    for poly in mesh.polygons:
+                        poly.flip()
+                    mesh.update()
+
+            yield
+        finally:
+            for obj, original in backups.items():
+                if obj is None or obj.name not in bpy.data.objects:
+                    continue
+                temp = obj.data
+                obj.data = original
+                if temp is None or temp == original:
+                    continue
+                try:
+                    if isinstance(temp, bpy.types.Mesh):
+                        bpy.data.meshes.remove(temp)
+                    elif isinstance(temp, bpy.types.Curve):
+                        bpy.data.curves.remove(temp)
+                    elif isinstance(temp, bpy.types.MetaBall):
+                        bpy.data.metaballs.remove(temp)
+                    elif isinstance(temp, bpy.types.Lattice):
+                        bpy.data.lattices.remove(temp)
+                    elif isinstance(temp, bpy.types.Armature):
+                        bpy.data.armatures.remove(temp)
+                except Exception as e:
+                    print(f"Could not free temporary data for {obj.name}: {e}")
+
+    @contextmanager
     def _managed_lods(self, settings, obj):
         """
         Creates temporary LOD hierarchy objects for FBX export and guarantees
@@ -396,20 +476,21 @@ class EXPORT_MESH_OT_batch(Operator):
 
         try:
             with self._temporary_visibility(job['objects']):
-                with self._temporary_transform(settings, job['objects']):
+                with self._temporary_apply_transform(settings, job['objects']):
+                    with self._temporary_transform(settings, job['objects']):
 
-                    is_lod_job = (
-                        settings.create_lod
-                        and settings.file_format == 'FBX'
-                        and len(job['objects']) == 1
-                        and job['objects'][0].type == 'MESH'
-                    )
+                        is_lod_job = (
+                            settings.create_lod
+                            and settings.file_format == 'FBX'
+                            and len(job['objects']) == 1
+                            and job['objects'][0].type == 'MESH'
+                        )
 
-                    if is_lod_job:
-                        with self._managed_lods(settings, job['objects'][0]) as lod_objects:
-                            self._select_and_export(settings, job, lod_objects)
-                    else:
-                        self._select_and_export(settings, job, job['objects'])
+                        if is_lod_job:
+                            with self._managed_lods(settings, job['objects'][0]) as lod_objects:
+                                self._select_and_export(settings, job, lod_objects)
+                        else:
+                            self._select_and_export(settings, job, job['objects'])
         finally:
             bpy.ops.object.select_all(action='DESELECT')
 

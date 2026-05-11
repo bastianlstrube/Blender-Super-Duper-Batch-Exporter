@@ -42,7 +42,7 @@ def draw_settings(self, context):
         self.layout.operator('export_mesh.batch', icon_value=icon_id)
     else:
         self.layout.operator('export_mesh.batch', icon='EXPORT')
-    
+
     # Options
     self.layout.separator()
     col = self.layout.column(align=True)
@@ -67,7 +67,7 @@ def draw_settings(self, context):
             "BATCH_EXPORT_UL_object_list", "",
             settings, "export_list",
             settings, "export_list_index",
-            rows=4,
+            rows=10,
         )
         side = list_row.column(align=True)
         side.operator("batch_export.list_add", text="", icon='ADD')
@@ -112,17 +112,30 @@ def draw_settings(self, context):
     grid.prop(settings, 'object_types')
     self.layout.separator()
 
-    # Transform
-    col = self.layout.column(align=True, heading="Transform:")
-    col.prop(settings, 'set_location')
-    if settings.set_location:
-        col.prop(settings, 'location', text="")  # text is redundant
-    col.prop(settings, 'set_rotation')
-    if settings.set_rotation:
-        col.prop(settings, 'rotation', text="")
-    col.prop(settings, 'set_scale')
-    if settings.set_scale:
-        col.prop(settings, 'scale', text="")
+    # Transform (collapsible)
+    header, body = self.layout.panel("sdbe_transform_panel", default_closed=True)
+    header.label(text="Transform:")
+    if body is not None:
+        col = body.column(align=True)
+        col.prop(settings, 'set_location')
+        if settings.set_location:
+            col.prop(settings, 'location', text="")
+        col.prop(settings, 'set_rotation')
+        if settings.set_rotation:
+            col.prop(settings, 'rotation', text="")
+        col.prop(settings, 'set_scale')
+        if settings.set_scale:
+            col.prop(settings, 'scale', text="")
+
+        body.separator()
+        col = body.column(align=True)
+        col.prop(settings, 'apply_location')
+        col.prop(settings, 'apply_rotation')
+        col.prop(settings, 'apply_scale')
+        if settings.apply_scale:
+            row = col.row()
+            row.separator()
+            row.prop(settings, 'corrective_flip_normals')
 
     # LOD Creation
     if settings.file_format == 'FBX':
