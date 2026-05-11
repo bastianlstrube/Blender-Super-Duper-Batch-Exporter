@@ -114,8 +114,18 @@ def draw_settings(self, context):
 
     # Transform (collapsible)
     header, body = self.layout.panel("sdbe_transform_panel", default_closed=True)
-    header.label(text="Transform:")
+    header.label(text="Transform on Export:")
     if body is not None:
+        #body.separator()
+        col = body.column(align=True)
+        col.prop(settings, 'apply_location')
+        col.prop(settings, 'apply_rotation')
+        col.prop(settings, 'apply_scale')
+        if settings.apply_scale:
+            row = col.row()
+            row.separator()
+            row.prop(settings, 'corrective_flip_normals')
+
         col = body.column(align=True)
         col.prop(settings, 'set_location')
         if settings.set_location:
@@ -127,15 +137,6 @@ def draw_settings(self, context):
         if settings.set_scale:
             col.prop(settings, 'scale', text="")
 
-        body.separator()
-        col = body.column(align=True)
-        col.prop(settings, 'apply_location')
-        col.prop(settings, 'apply_rotation')
-        col.prop(settings, 'apply_scale')
-        if settings.apply_scale:
-            row = col.row()
-            row.separator()
-            row.prop(settings, 'corrective_flip_normals')
 
     # LOD Creation
     if settings.file_format == 'FBX':
