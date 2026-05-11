@@ -212,6 +212,7 @@ class EXPORT_MESH_OT_batch(Operator):
                 obj.scale.copy(),
             )
             obj.data = obj.data.copy()
+            """
             if (
                 settings.apply_scale
                 and settings.corrective_flip_normals
@@ -219,6 +220,7 @@ class EXPORT_MESH_OT_batch(Operator):
                 and (obj.scale.x * obj.scale.y * obj.scale.z) < 0.0
             ):
                 flip_targets.append(obj)
+            """
 
         try:
             if data_backups:
@@ -238,15 +240,16 @@ class EXPORT_MESH_OT_batch(Operator):
                         rotation=settings.apply_rotation,
                         scale=settings.apply_scale,
                         properties=False,
+                        corrective_flip_normals=settings.corrective_flip_normals,
                     )
                 except RuntimeError as e:
                     print(f"transform_apply failed: {e}")
 
-                for obj in flip_targets:
-                    mesh = obj.data
-                    for poly in mesh.polygons:
-                        poly.flip()
-                    mesh.update()
+                #for obj in flip_targets:
+                #    mesh = obj.data
+                #    for poly in mesh.polygons:
+                #        poly.flip()
+                #    mesh.update()
 
                 # Force the depsgraph to refresh so exporters (notably glTF, which
                 # reads evaluated data through the depsgraph) pick up the swapped,
