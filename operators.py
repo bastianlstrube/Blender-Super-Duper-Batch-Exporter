@@ -192,8 +192,9 @@ class EXPORT_MESH_OT_batch(Operator):
             yield
             return
 
-        backups = {}  # obj -> original data
-        flip_targets = []  # mesh objects with negative-determinant scale
+        data_backups = {}       # obj -> original data
+        transform_backups = {}  # obj -> (location, rotation_euler, rotation_quaternion, scale)
+        flip_targets = []       # mesh objects with negative-determinant scale
 
         for obj in objects_to_apply:
             if obj is None or obj.data is None or not hasattr(obj.data, 'copy'):
@@ -201,7 +202,15 @@ class EXPORT_MESH_OT_batch(Operator):
             # Skip linked / system-overridden objects — we can't edit their data.
             if obj.library or (obj.override_library and obj.override_library.is_system_override):
                 continue
-            backups[obj] = obj.data
+            data_backups[obj] = obj.data
+            # transform_apply resets the object's loc/rot/scale — back them up so
+            # we can restore the scene state after export.
+            transform_backups[obj] = (
+                obj.location.copy(),
+                obj.rotation_euler.copy(),
+                obj.rotation_quaternion.copy(),
+                obj.scale.copy(),
+            )
             obj.data = obj.data.copy()
             if (
                 settings.apply_scale
@@ -212,15 +221,15 @@ class EXPORT_MESH_OT_batch(Operator):
                 flip_targets.append(obj)
 
         try:
-            if backups:
+            if data_backups:
                 bpy.ops.object.select_all(action='DESELECT')
-                for obj in backups:
+                for obj in data_backups:
                     try:
                         obj.select_set(True)
                     except RuntimeError:
                         pass
                 # Active must be set for transform_apply.
-                first = next(iter(backups))
+                first = next(iter(data_backups))
                 bpy.context.view_layer.objects.active = first
 
                 try:
@@ -239,13 +248,24 @@ class EXPORT_MESH_OT_batch(Operator):
                         poly.flip()
                     mesh.update()
 
+                # Force the depsgraph to refresh so exporters (notably glTF, which
+                # reads evaluated data through the depsgraph) pick up the swapped,
+                # baked mesh instead of a stale evaluation of the original.
+                bpy.context.view_layer.update()
+
             yield
         finally:
-            for obj, original in backups.items():
+            for obj, original in data_backups.items():
                 if obj is None or obj.name not in bpy.data.objects:
                     continue
                 temp = obj.data
                 obj.data = original
+                # Restore the object's transforms (transform_apply reset them).
+                loc, rot_e, rot_q, scl = transform_backups[obj]
+                obj.location = loc
+                obj.rotation_euler = rot_e
+                obj.rotation_quaternion = rot_q
+                obj.scale = scl
                 if temp is None or temp == original:
                     continue
                 try:
