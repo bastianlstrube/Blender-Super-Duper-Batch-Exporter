@@ -36,22 +36,24 @@ class ExportObjectItem(PropertyGroup):
 
 
 def get_mode_items(self, context):
-    """Dynamically generates export modes, hiding legacy options from the UI."""
-    # PARENT_OBJECTS is placed first so Blender naturally uses it as the default choice
+    """Dynamically generates export modes, keeping legacy IDs alive for file loading."""
+    # Core active items with their original explicit integer values preserved
     items = [
+        ("OBJECTS", "Objects", "Each object is exported separately", 1),
         ("PARENT_OBJECTS", "Parent Objects",
-         "Same as 'Objects', but objects that are parents have their\nchildren exported along with them", 1),
-        ("OBJECTS", "Objects", "Each object is exported separately", 2),
+         "Same as 'Objects', but objects that are parents have their\nchildren exported along with them", 2),
         ("COLLECTIONS", "Collections", "Each collection is exported into its own file", 3),
-        ("SCENE", "Scene", "Export the scene into one file\nUse prefix or suffix for filename, else .blend file name is used.", 4),
+        ("SCENE", "Scene", "Export the scene into one file\nUse prefix or suffix for filename, else .blend file name is used.", 6),
     ]
     
-    # Check underlying IDProperty storage for legacy states during file load
+    # Read the raw property value directly from the data block
     current_raw = self.get("mode")
-    if current_raw == "COLLECTION_SUBDIRECTORIES":
-        items.append(("COLLECTION_SUBDIRECTORIES", "[Legacy] Collection Sub-Directories", "Legacy mode being migrated", 5))
-    elif current_raw == "COLLECTION_SUBDIR_PARENTS":
-        items.append(("COLLECTION_SUBDIR_PARENTS", "[Legacy] Collection Sub-Directories By Parent", "Legacy mode being migrated", 6))
+    
+    # If the file contains a legacy mode, expose it to the loader so it won't clamp to 'SCENE'
+    if current_raw in {"COLLECTION_SUBDIRECTORIES", 4}:
+        items.append(("COLLECTION_SUBDIRECTORIES", "[Legacy] Collection Sub-Directories", "Legacy mode", 4))
+    elif current_raw in {"COLLECTION_SUBDIR_PARENTS", 5}:
+        items.append(("COLLECTION_SUBDIR_PARENTS", "[Legacy] Collection Sub-Directories By Parent", "Legacy mode", 5))
         
     return items
 

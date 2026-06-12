@@ -29,25 +29,28 @@ def migrate_legacy_batch_export_modes(dummy=None):
             continue
             
         settings = scene.batch_export
-        # Inspect raw data dictionary before properties get clamped by RNA definitions
+        # Pull raw value directly out of the storage dictionary to catch integer IDs
         raw_mode = settings.get("mode")
         
-        if raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS'}:
-            # Step 1: Resolve the new standard structural mode
-            if raw_mode == 'COLLECTION_SUBDIRECTORIES':
-                settings.mode = 'OBJECTS'
-            else:
-                settings.mode = 'PARENT_OBJECTS'
+        # Intercept legacy modes (String Identifiers or explicit Integer IDs 4 and 5)
+        if raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS', 4, 5}:
             
-            # Step 2: Determine appropriate layout replacement token
-            # If full_hierarchy was checked, replicate the whole nested collection tree path
+            # Determine token based on the legacy full_hierarchy checkbox status
             token = "$COLL_PATH/" if settings.full_hierarchy else "$COLL/"
             
-            # Step 3: Prepend the folder formatting string token if missing
-            if not settings.prefix.startswith(token):
-                settings.prefix = token + settings.prefix
+            # Always prepend token to the very start of any pre-existing prefix text
+            current_prefix = settings.prefix
+            if not current_prefix.startswith(token):
+                settings.prefix = token + current_prefix
+            
+            # Map cleanly over to our streamlined structural choices
+            if raw_mode in {'COLLECTION_SUBDIRECTORIES', 4}:
+                settings.mode = 'OBJECTS'
+            elif raw_mode in {'COLLECTION_SUBDIR_PARENTS', 5}:
+                settings.mode = 'PARENT_OBJECTS'
                 
-            print(f"[Batch Export] Migrated scene '{scene.name}' from legacy mode '{raw_mode}' to token structure.")
+            print(f"[Batch Export] Successfully migrated scene '{scene.name}' to the token path syntax.")
+
 
 module_names = [
     "preferences",
@@ -133,7 +136,7 @@ def unregister():
     # Note: Scene.batch_export is intentionally NOT deleted on unregister.
     # Removing it would break access to the user's per-scene settings stored
     # in the .blend file if the addon is re-enabled in the same session.
-    
+
     if migrate_legacy_batch_export_modes in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(migrate_legacy_batch_export_modes)
 
