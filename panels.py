@@ -43,6 +43,7 @@ def draw_settings(self, context):
         col.prop(settings, 'copy_on_export')
     col.prop(settings, 'prefix')
     col.prop(settings, 'suffix')
+
     self.layout.separator()
 
     # Export Settings
@@ -64,10 +65,13 @@ def draw_settings(self, context):
         side.operator("batch_export.list_remove", text="", icon='REMOVE')
         side.separator()
         side.operator("batch_export.list_remove_invalid", text="", icon='TRASH')
+
+    ''' REDUNDANT BY TOKENS
     if 'OBJECT' in settings.mode:
         col.prop(settings, 'prefix_collection')
     if 'SUBDIR' in settings.mode:
         col.prop(settings, 'full_hierarchy')
+    '''
     self.layout.separator()
 
     # Settings

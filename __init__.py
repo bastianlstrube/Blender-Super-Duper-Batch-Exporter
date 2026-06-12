@@ -19,6 +19,35 @@ from bpy.utils import register_class, unregister_class, previews
 import importlib
 import os
 import bpy
+from bpy.app.handlers import persistent
+
+@persistent
+def migrate_legacy_batch_export_modes(dummy=None):
+    """Checks for legacy collection directory settings on load and converts them to tokens."""
+    for scene in bpy.data.scenes:
+        if not scene or not hasattr(scene, "batch_export"):
+            continue
+            
+        settings = scene.batch_export
+        # Inspect raw data dictionary before properties get clamped by RNA definitions
+        raw_mode = settings.get("mode")
+        
+        if raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS'}:
+            # Step 1: Resolve the new standard structural mode
+            if raw_mode == 'COLLECTION_SUBDIRECTORIES':
+                settings.mode = 'OBJECTS'
+            else:
+                settings.mode = 'PARENT_OBJECTS'
+            
+            # Step 2: Determine appropriate layout replacement token
+            # If full_hierarchy was checked, replicate the whole nested collection tree path
+            token = "$COLL_PATH/" if settings.full_hierarchy else "$COLL/"
+            
+            # Step 3: Prepend the folder formatting string token if missing
+            if not settings.prefix.startswith(token):
+                settings.prefix = token + settings.prefix
+                
+            print(f"[Batch Export] Migrated scene '{scene.name}' from legacy mode '{raw_mode}' to token structure.")
 
 module_names = [
     "preferences",
@@ -86,6 +115,7 @@ def register():
     TOPBAR_MT_editor_menus.append(panels.draw_popover)
     VIEW3D_MT_editor_menus.append(panels.draw_popover)
 
+    bpy.app.handlers.load_post.append(migrate_legacy_batch_export_modes)
 
 def unregister():
     # icon removal
@@ -103,6 +133,9 @@ def unregister():
     # Note: Scene.batch_export is intentionally NOT deleted on unregister.
     # Removing it would break access to the user's per-scene settings stored
     # in the .blend file if the addon is re-enabled in the same session.
+    
+    if migrate_legacy_batch_export_modes in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(migrate_legacy_batch_export_modes)
 
 def is_dark_theme():
     """Calculates the luminance of the UI to determine if the theme is dark."""
