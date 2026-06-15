@@ -37,13 +37,15 @@ class ExportObjectItem(PropertyGroup):
 
 def get_mode_items(self, context):
     """Dynamically generates export modes, keeping legacy IDs alive for file loading."""
-    # Core active items with their original explicit integer values preserved
+    # Core active items with their original explicit integer values preserved.
+    # PARENT_OBJECTS is listed first so it remains the default (a dynamic
+    # items callback can't take a `default=`, so the first item is used).
     items = [
-        ("OBJECTS", "Objects", "Each object is exported separately", 1),
         ("PARENT_OBJECTS", "Parent Objects",
          "Same as 'Objects', but objects that are parents have their\nchildren exported along with them", 2),
+        ("OBJECTS", "Objects", "Each object is exported separately", 1),
         ("COLLECTIONS", "Collections", "Each collection is exported into its own file", 3),
-        ("SCENE", "Scene", "Export the scene into one file\nUse prefix or suffix for filename, else .blend file name is used.", 6),
+        ("SCENE", "Scene", "Export the whole scene into a single file\nNamed after the .blend file, with any prefix/suffix applied", 6),
     ]
     
     # Read the raw property value directly from the data block
@@ -129,14 +131,9 @@ class BatchExportSettings(PropertyGroup):
     )
     export_list: CollectionProperty(type=ExportObjectItem)
     export_list_index: IntProperty(name="Active Object Index", default=0)
-    prefix_collection: BoolProperty(
-        name="Prefix Collection Name",
-        description="Adds the containing collection's name to the exported file's name, after the 'prefix'"
-    )
-    full_hierarchy: BoolProperty(
-        name="Full Hierarchy",
-        description="Legacy setting used to preserve folder tree states during migration conversions."
-    )
+    # Note: the old `prefix_collection` and `full_hierarchy` toggles were removed in
+    # favour of the $COLL / $COLL_PATH prefix tokens. Older files carrying those values
+    # are converted on load by migrate_legacy_batch_export_modes() in __init__.py.
 
     # Format specific options:
     usd_format: EnumProperty(
@@ -165,11 +162,11 @@ class BatchExportSettings(PropertyGroup):
     ply_ascii: BoolProperty(name="ASCII Format", default=False)
     stl_ascii: BoolProperty(name="ASCII Format", default=False)
 
-    # Presets:
+    # Presets: A string property for saving your option (without new presets changing your choice), and enum property for choosing
     abc_preset: StringProperty(default='NO_PRESET')
     abc_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
-        description="Use export settings from a preset.",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Alembic (.abc))",
         items=lambda self, context: get_operator_presets('wm.alembic_export'),
         get=lambda self: get_preset_index('wm.alembic_export', self.abc_preset),
         set=lambda self, value: setattr(self, 'abc_preset', preset_enum_items_refs['wm.alembic_export'][value][0]),
@@ -177,7 +174,7 @@ class BatchExportSettings(PropertyGroup):
     usd_preset: StringProperty(default='NO_PRESET')
     usd_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
-        description="Use export settings from a preset.",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Universal Scene Description (.usd, .usdc, .usda))",
         items=lambda self, context: get_operator_presets('wm.usd_export'),
         get=lambda self: get_preset_index('wm.usd_export', self.usd_preset),
         set=lambda self, value: setattr(self, 'usd_preset', preset_enum_items_refs['wm.usd_export'][value][0]),
@@ -185,7 +182,7 @@ class BatchExportSettings(PropertyGroup):
     obj_preset: StringProperty(default='NO_PRESET')
     obj_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
-        description="Use export settings from a preset.",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > Wavefront (.obj))",
         items=lambda self, context: get_operator_presets('wm.obj_export'),
         get=lambda self: get_preset_index('wm.obj_export', self.obj_preset),
         set=lambda self, value: setattr(self, 'obj_preset', preset_enum_items_refs['wm.obj_export'][value][0]),
@@ -193,7 +190,7 @@ class BatchExportSettings(PropertyGroup):
     fbx_preset: StringProperty(default='NO_PRESET')
     fbx_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
-        description="Use export settings from a preset.",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > FBX (.fbx))",
         items=lambda self, context: get_operator_presets('export_scene.fbx'),
         get=lambda self: get_preset_index('export_scene.fbx', self.fbx_preset),
         set=lambda self, value: setattr(self, 'fbx_preset', preset_enum_items_refs['export_scene.fbx'][value][0]),
@@ -201,15 +198,27 @@ class BatchExportSettings(PropertyGroup):
     gltf_preset: StringProperty(default='NO_PRESET')
     gltf_preset_enum: EnumProperty(
         name="Preset", options={'SKIP_SAVE'},
-        description="Use export settings from a preset.",
+        description="Use export settings from a preset.\n(Create in the export settings from the File > Export > glTF (.glb/.gltf))",
         items=lambda self, context: get_operator_presets('export_scene.gltf'),
         get=lambda self: get_preset_index('export_scene.gltf', self.gltf_preset),
         set=lambda self, value: setattr(self, 'gltf_preset', preset_enum_items_refs['export_scene.gltf'][value][0]),
     )
 
-    apply_mods: BoolProperty(name="Apply Modifiers", default=True)
-    frame_start: IntProperty(name="Frame Start", default=1)
-    frame_end: IntProperty(name="Frame End", default=1)
+    apply_mods: BoolProperty(
+        name="Apply Modifiers",
+        description="Should the modifiers by applied onto the exported mesh?\nCan't export Shape Keys with this on",
+        default=True,
+    )
+    frame_start: IntProperty(
+        name="Frame Start",
+        description="First frame to export",
+        default=1,
+    )
+    frame_end: IntProperty(
+        name="Frame End",
+        description="Last frame to export",
+        default=1,
+    )
     object_types: EnumProperty(
         name="Object Types",
         options={'ENUM_FLAG'},
@@ -225,6 +234,7 @@ class BatchExportSettings(PropertyGroup):
             ('LIGHT', "Lamp", "", 256),
             ('CAMERA', "Camera", "", 512),
         ],
+        description="Which object types to export\n(NOT ALL FORMATS WILL SUPPORT THESE)",
         default={'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'GPENCIL', 'ARMATURE'},
     )
 
@@ -235,18 +245,53 @@ class BatchExportSettings(PropertyGroup):
     rotation: FloatVectorProperty(name="Rotation", default=(0.0, 0.0, 0.0), subtype="EULER")
     set_scale: BoolProperty(name="Set Scale", default=False)
     scale: FloatVectorProperty(name="Scale", default=(1.0, 1.0, 1.0), subtype="XYZ")
-    apply_location: BoolProperty(name="Apply Location", default=False)
-    apply_rotation: BoolProperty(name="Apply Rotation", default=False)
-    apply_scale: BoolProperty(name="Apply Scale", default=False)
-    corrective_flip_normals: BoolProperty(name="Corrective Flip Normals", default=True)
+    apply_location: BoolProperty(
+        name="Apply Location", default=False,
+        description="Bake the object's location into the mesh data before export",
+    )
+    apply_rotation: BoolProperty(
+        name="Apply Rotation", default=False,
+        description="Bake the object's rotation into the mesh data before export",
+    )
+    apply_scale: BoolProperty(
+        name="Apply Scale", default=False,
+        description="Bake the object's scale into the mesh data before export",
+    )
+    corrective_flip_normals: BoolProperty(
+        name="Corrective Flip Normals", default=True,
+        description="When applying a negative scale, flip mesh normals so faces stay outward-facing",
+    )
 
     # LOD Creation:
-    create_lod: BoolProperty(name="Create LOD", default=False)
-    lod_count: IntProperty(name="Number of LODs", default=4, min=1, max=4)
-    lod1_ratio: FloatProperty(name="LOD 1 Ratio", default=0.80, min=0.0, max=1.0, subtype="FACTOR")
-    lod2_ratio: FloatProperty(name="LOD 2 Ratio", default=0.50, min=0.0, max=1.0, subtype="FACTOR")
-    lod3_ratio: FloatProperty(name="LOD 3 Ratio", default=0.20, min=0.0, max=1.0, subtype="FACTOR")
-    lod4_ratio: FloatProperty(name="LOD 4 Ratio", default=0.10, min=0.0, max=1.0, subtype="FACTOR")
+    create_lod: BoolProperty(
+        name="Create LOD", default=False,
+        description="Export Levels of Details for game engines",
+    )
+    lod_count: IntProperty(
+        name="Number of LODs",
+        description="How many levels of detail to export",
+        default=4, min=1, max=4,
+    )
+    lod1_ratio: FloatProperty(
+        name="LOD 1 Ratio",
+        description="Decimate factor for LOD 1",
+        default=0.80, min=0.0, max=1.0, subtype="FACTOR"
+    )
+    lod2_ratio: FloatProperty(
+        name="LOD 2 Ratio",
+        description="Decimate factor for LOD 2",
+        default=0.50, min=0.0, max=1.0, subtype="FACTOR"
+    )
+    lod3_ratio: FloatProperty(
+        name="LOD 3 Ratio",
+        description="Decimate factor for LOD 3",
+        default=0.20, min=0.0, max=1.0, subtype="FACTOR"
+    )
+    lod4_ratio: FloatProperty(
+        name="LOD 4 Ratio",
+        description="Decimate factor for LOD 4",
+        default=0.10, min=0.0, max=1.0, subtype="FACTOR"
+    )
 
 registry = [
     ExportObjectItem,

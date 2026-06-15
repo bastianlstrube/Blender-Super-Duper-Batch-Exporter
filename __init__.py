@@ -23,33 +23,44 @@ from bpy.app.handlers import persistent
 
 @persistent
 def migrate_legacy_batch_export_modes(dummy=None):
-    """Checks for legacy collection directory settings on load and converts them to tokens."""
+    """Converts legacy collection-directory settings from older files into the token syntax.
+
+    The old `prefix_collection` and `full_hierarchy` options have been removed; their
+    stored values are read raw here (they no longer exist as registered properties).
+    """
     for scene in bpy.data.scenes:
         if not scene or not hasattr(scene, "batch_export"):
             continue
-            
+
         settings = scene.batch_export
-        # Pull raw value directly out of the storage dictionary to catch integer IDs
+        # Pull raw values directly out of the storage block to catch integer IDs and
+        # properties that are no longer registered on the current PropertyGroup.
         raw_mode = settings.get("mode")
-        
-        # Intercept legacy modes (String Identifiers or explicit Integer IDs 4 and 5)
+
+        # Legacy "Collection Sub-Directories" modes (string IDs or explicit integer IDs 4/5)
         if raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS', 4, 5}:
-            
-            # Determine token based on the legacy full_hierarchy checkbox status
-            token = "$COLL_PATH/" if settings.full_hierarchy else "$COLL/"
-            
-            # Always prepend token to the very start of any pre-existing prefix text
-            current_prefix = settings.prefix
-            if not current_prefix.startswith(token):
-                settings.prefix = token + current_prefix
-            
-            # Map cleanly over to our streamlined structural choices
+            # Pick the path token based on the old full_hierarchy checkbox state
+            token = "$COLL_PATH/" if settings.get("full_hierarchy") else "$COLL/"
+
+            # Prepend the directory token to any pre-existing prefix text
+            if not settings.prefix.startswith(token):
+                settings.prefix = token + settings.prefix
+
+            # Map onto the streamlined structural choices
             if raw_mode in {'COLLECTION_SUBDIRECTORIES', 4}:
                 settings.mode = 'OBJECTS'
             elif raw_mode in {'COLLECTION_SUBDIR_PARENTS', 5}:
                 settings.mode = 'PARENT_OBJECTS'
-                
-            print(f"[Batch Export] Successfully migrated scene '{scene.name}' to the token path syntax.")
+
+            print(f"[Batch Export] Migrated scene '{scene.name}' to the token path syntax.")
+
+        # Legacy "Prefix Collection Name" toggle -> append a $COLL_ token to the prefix,
+        # reproducing the old "<Collection>_<name>" filename behaviour.
+        if settings.get("prefix_collection"):
+            if not settings.prefix.endswith("$COLL_"):
+                settings.prefix = settings.prefix + "$COLL_"
+            settings["prefix_collection"] = 0
+            print(f"[Batch Export] Migrated 'Prefix Collection' in scene '{scene.name}' to a $COLL_ token.")
 
 
 module_names = [

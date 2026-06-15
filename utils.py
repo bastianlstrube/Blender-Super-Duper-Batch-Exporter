@@ -132,49 +132,40 @@ def get_collection_hierarchy(start_coll_name, top_level_coll_name="Scene Collect
     # Get the starting collection
     start_coll = bpy.data.collections.get(start_coll_name)
     if not start_coll:
-        print(f"Error: Start collection '{start_coll_name}' not found.")
         return None
-    
+
     # Get the top-level collection
     top_level_coll = None
     if top_level_coll_name == "Scene Collection":
         if bpy.context and bpy.context.scene:
             top_level_coll = bpy.context.scene.collection
         else:
-            print("Error: Cannot access Scene Collection. No active scene context.")
             return None
     else:
         top_level_coll = bpy.data.collections.get(top_level_coll_name)
         if not top_level_coll:
-            print(f"Error: Top-level collection '{top_level_coll_name}' not found.")
             return None
-    
-    print(f"Checking hierarchy for collection: '{start_coll.name}' up to '{top_level_coll_name}'")
-    
+
     # Special case: start collection is the target top-level collection
     if start_coll == top_level_coll:
-        print(f"'{start_coll.name}' is the specified top-level collection.")
         return start_coll.name
-    
+
     # Trace the path up the hierarchy
     path = [start_coll.name]
     current_coll = start_coll
-    
+
     while current_coll != top_level_coll:
         parent_coll = find_parent_collection(current_coll)
-        
+
         if not parent_coll:
-            print(f"No parent found for '{current_coll.name}'. Hierarchy is incomplete.")
             return None
-        
+
         if parent_coll == top_level_coll:
-            hierarchy_path = os.path.join(*reversed(path))
-            print(f"Hierarchy path found: {hierarchy_path}")
-            return hierarchy_path
-        
+            return os.path.join(*reversed(path))
+
         path.append(parent_coll.name)
-            
+
         current_coll = parent_coll
-    
+
     # This should not be reached if logic is correct
     return None

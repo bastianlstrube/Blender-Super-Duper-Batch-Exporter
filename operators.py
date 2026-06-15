@@ -119,7 +119,10 @@ class EXPORT_MESH_OT_batch(Operator):
             coll_name = bpy.path.clean_name(coll_to_use.name)
             hierarchy = utils.get_collection_hierarchy(coll_to_use.name)
             if hierarchy:
-                coll_path = hierarchy.replace("\\", "/")
+                # Sanitize each path component (consistent with $COLL) while
+                # preserving the directory structure as forward slashes.
+                parts = hierarchy.replace("\\", "/").split("/")
+                coll_path = "/".join(bpy.path.clean_name(p) for p in parts if p)
             else:
                 coll_path = coll_name
                 
@@ -397,19 +400,12 @@ class EXPORT_MESH_OT_batch(Operator):
             yield self._build_job(settings, filename, objects, base_dir)
 
     def _build_job(self, settings, name, objects, base_dir, source_obj=None, collection=None):
-        item_name = name
-
         resolved_prefix = self._resolve_tokens(settings.prefix, source_obj, collection)
         resolved_suffix = self._resolve_tokens(settings.suffix, source_obj, collection)
 
-        if settings.prefix_collection and 'OBJECT' in settings.mode and source_obj and source_obj.users_collection:
-            collection_name = source_obj.users_collection[0].name
-            if collection_name != 'Scene Collection':
-                item_name = f"{collection_name}_{item_name}"
-
         return {
-            'name': item_name, 
-            'objects': objects, 
+            'name': name,
+            'objects': objects,
             'directory': base_dir,
             'prefix': resolved_prefix,
             'suffix': resolved_suffix
