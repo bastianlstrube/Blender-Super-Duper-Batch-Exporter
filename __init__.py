@@ -36,8 +36,16 @@ def migrate_legacy_batch_export_modes(dummy=None):
         # Pull raw values directly out of the storage block to catch integer IDs and
         # properties that are no longer registered on the current PropertyGroup.
         raw_mode = settings.get("mode")
-
-        # Legacy "Collection Sub-Directories" modes (string IDs or explicit integer IDs 4/5)
+        
+        # 1. Catch legacy string 'SCENE' or corrupted blank/empty states
+        if raw_mode == 'SCENE' or settings.mode == '':
+            # Re-assigning the string 'SCENE' via Python forces Blender to look up 
+            # the identifier, find the new integer 6, and write it cleanly to the file.
+            settings.mode = 'SCENE'
+            print(f"[Batch Export] Restored 'SCENE' mode for scene '{scene.name}'.")
+            continue
+        
+        # 2. Intercept legacy modes (String Identifiers or explicit Integer IDs 4 and 5)
         if raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS', 4, 5}:
             # Pick the path token based on the old full_hierarchy checkbox state
             token = "$COLL_PATH/" if settings.get("full_hierarchy") else "$COLL/"

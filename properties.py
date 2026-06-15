@@ -45,7 +45,7 @@ def get_mode_items(self, context):
          "Same as 'Objects', but objects that are parents have their\nchildren exported along with them", 2),
         ("OBJECTS", "Objects", "Each object is exported separately", 1),
         ("COLLECTIONS", "Collections", "Each collection is exported into its own file", 3),
-        ("SCENE", "Scene", "Export the whole scene into a single file\nNamed after the .blend file, with any prefix/suffix applied", 6),
+        ("SCENE", "Scene", "Export the scene into one file\nIf Filename is empty, .blend file name is used.", 6),
     ]
     
     # Read the raw property value directly from the data block

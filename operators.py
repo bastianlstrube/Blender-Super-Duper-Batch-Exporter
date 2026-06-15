@@ -396,7 +396,10 @@ class EXPORT_MESH_OT_batch(Operator):
             for coll, coll_objects in collections_map.items():
                 yield self._build_job(settings, coll.name, coll_objects, base_dir, collection=coll)
         elif mode == 'SCENE':
-            filename = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
+            if settings.prefix:
+                filename = ''
+            else:
+                filename = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
             yield self._build_job(settings, filename, objects, base_dir)
 
     def _build_job(self, settings, name, objects, base_dir, source_obj=None, collection=None):
