@@ -41,8 +41,11 @@ def draw_settings(self, context):
         col.prop(settings, 'copy_directory')
     if copies:
         col.prop(settings, 'copy_on_export')
-    col.prop(settings, 'prefix')
-    col.prop(settings, 'suffix')
+    if settings.mode == 'SCENE':
+        col.prop(settings, 'prefix', text = 'Filename')
+    else:
+        col.prop(settings, 'prefix')
+        col.prop(settings, 'suffix')
 
     self.layout.separator()
 
