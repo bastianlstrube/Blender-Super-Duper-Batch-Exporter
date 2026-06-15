@@ -51,17 +51,21 @@ def _migrate_all_scenes():
         # Work on a local copy of the old prefix; it is now an unregistered raw value.
         old_prefix = settings.get("prefix") or ""
 
-        # 1. Catch legacy string 'SCENE' or corrupted blank/empty states.
-        # `raw_mode is not None` guards a brand-new file (nothing stored yet) so it
-        # keeps the dynamic-items default (Parent Objects) instead of being forced
-        # to SCENE; only an actually-stored-but-unmappable value is treated as legacy.
-        if raw_mode == 'SCENE' or (raw_mode is not None and settings.mode == ''):
+        # 1. Brand-new file: nothing is stored yet. The dynamic-items enum has no
+        # item at value 0, so an unset `mode` shows blank instead of defaulting to
+        # the first item. Apply the intended default explicitly.
+        if raw_mode is None:
+            settings.mode = 'PARENT_OBJECTS'
+
+        # 2. Catch legacy string 'SCENE' or corrupted blank/empty states. Only an
+        # actually-stored-but-unmappable value reaches here (raw_mode is not None).
+        elif raw_mode == 'SCENE' or settings.mode == '':
             # Re-assigning the string 'SCENE' via Python forces Blender to look up
             # the identifier, find the new integer 6, and write it cleanly to the file.
             settings.mode = 'SCENE'
             print(f"[Batch Export] Restored 'SCENE' mode for scene '{scene.name}'.")
 
-        # 2. Intercept legacy modes (String Identifiers or explicit Integer IDs 4 and 5)
+        # 3. Intercept legacy modes (String Identifiers or explicit Integer IDs 4 and 5)
         elif raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS', 4, 5}:
             # Pick the path token based on the old full_hierarchy checkbox state
             token = "$COLL_PATH/" if settings.get("full_hierarchy") else "$COLL/"
