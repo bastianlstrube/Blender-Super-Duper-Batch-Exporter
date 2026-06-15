@@ -23,11 +23,22 @@ from bpy.app.handlers import persistent
 
 @persistent
 def migrate_legacy_batch_export_modes(dummy=None):
-    """Converts legacy collection-directory settings from older files into the token syntax.
+    """Converts legacy settings from older files into the current token syntax.
 
-    The old `prefix_collection` and `full_hierarchy` options have been removed; their
-    stored values are read raw here (they no longer exist as registered properties).
+    The old `prefix`, `suffix`, `prefix_collection` and `full_hierarchy` options have
+    all been removed; their stored values are read raw here (they no longer exist as
+    registered properties) and folded into the single `filename` template.
     """
+    # Reassigning `mode` below would otherwise trigger the identity-token swap and
+    # rewrite the filename before we've migrated it; suppress that for the duration.
+    properties._suppress_mode_update = True
+    try:
+        _migrate_all_scenes()
+    finally:
+        properties._suppress_mode_update = False
+
+
+def _migrate_all_scenes():
     for scene in bpy.data.scenes:
         if not scene or not hasattr(scene, "batch_export"):
             continue
@@ -36,23 +47,28 @@ def migrate_legacy_batch_export_modes(dummy=None):
         # Pull raw values directly out of the storage block to catch integer IDs and
         # properties that are no longer registered on the current PropertyGroup.
         raw_mode = settings.get("mode")
-        
-        # 1. Catch legacy string 'SCENE' or corrupted blank/empty states
-        if raw_mode == 'SCENE' or settings.mode == '':
-            # Re-assigning the string 'SCENE' via Python forces Blender to look up 
+
+        # Work on a local copy of the old prefix; it is now an unregistered raw value.
+        old_prefix = settings.get("prefix") or ""
+
+        # 1. Catch legacy string 'SCENE' or corrupted blank/empty states.
+        # `raw_mode is not None` guards a brand-new file (nothing stored yet) so it
+        # keeps the dynamic-items default (Parent Objects) instead of being forced
+        # to SCENE; only an actually-stored-but-unmappable value is treated as legacy.
+        if raw_mode == 'SCENE' or (raw_mode is not None and settings.mode == ''):
+            # Re-assigning the string 'SCENE' via Python forces Blender to look up
             # the identifier, find the new integer 6, and write it cleanly to the file.
             settings.mode = 'SCENE'
             print(f"[Batch Export] Restored 'SCENE' mode for scene '{scene.name}'.")
-            continue
-        
+
         # 2. Intercept legacy modes (String Identifiers or explicit Integer IDs 4 and 5)
-        if raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS', 4, 5}:
+        elif raw_mode in {'COLLECTION_SUBDIRECTORIES', 'COLLECTION_SUBDIR_PARENTS', 4, 5}:
             # Pick the path token based on the old full_hierarchy checkbox state
             token = "$COLL_PATH/" if settings.get("full_hierarchy") else "$COLL/"
 
             # Prepend the directory token to any pre-existing prefix text
-            if not settings.prefix.startswith(token):
-                settings.prefix = token + settings.prefix
+            if not old_prefix.startswith(token):
+                old_prefix = token + old_prefix
 
             # Map onto the streamlined structural choices
             if raw_mode in {'COLLECTION_SUBDIRECTORIES', 4}:
@@ -65,10 +81,28 @@ def migrate_legacy_batch_export_modes(dummy=None):
         # Legacy "Prefix Collection Name" toggle -> append a $COLL_ token to the prefix,
         # reproducing the old "<Collection>_<name>" filename behaviour.
         if settings.get("prefix_collection"):
-            if not settings.prefix.endswith("$COLL_"):
-                settings.prefix = settings.prefix + "$COLL_"
+            if not old_prefix.endswith("$COLL_"):
+                old_prefix = old_prefix + "$COLL_"
             settings["prefix_collection"] = 0
             print(f"[Batch Export] Migrated 'Prefix Collection' in scene '{scene.name}' to a $COLL_ token.")
+
+        # 3. Fold the old prefix/suffix model into the single 'filename' template.
+        # Only touch files that actually stored a prefix or suffix; everything else
+        # relies on the new property default ($OBJ) plus the runtime fallback.
+        if settings.get("filename") is None and (
+            settings.get("prefix") is not None or settings.get("suffix") is not None
+        ):
+            old_suffix = settings.get("suffix") or ""
+            mode_now = settings.mode
+            if mode_now == 'SCENE':
+                # Scene mode used the prefix as the whole name; blank meant the .blend name.
+                core = old_prefix if old_prefix else "$BLEND"
+            elif mode_now == 'COLLECTIONS':
+                core = old_prefix + "$COLL"
+            else:  # OBJECTS / PARENT_OBJECTS
+                core = old_prefix + "$OBJ"
+            settings["filename"] = core + old_suffix
+            print(f"[Batch Export] Migrated naming to unified 'filename' for scene '{scene.name}'.")
 
 
 module_names = [

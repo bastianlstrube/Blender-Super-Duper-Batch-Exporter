@@ -4,6 +4,7 @@ from pathlib import Path
 from contextlib import contextmanager
 
 from bpy.types import Operator
+from bpy.props import StringProperty
 from . import utils
 
 
@@ -30,7 +31,7 @@ class EXPORT_MESH_OT_batch(Operator):
             self.report({'ERROR'}, f"Export directory does not exist:\n{base_dir}")
             return {'CANCELLED'}
 
-        filtered_objects = self._get_filtered_objects(context, settings)
+        filtered_objects = utils.get_filtered_objects(context, settings)
         if not filtered_objects:
             self.report({'WARNING'}, "No objects matched the filter settings.")
             return {'FINISHED'}
@@ -72,69 +73,16 @@ class EXPORT_MESH_OT_batch(Operator):
         seen = set()
         collisions = []
         for job in jobs:
-            prefix = job.get('prefix', settings.prefix)
-            suffix = job.get('suffix', settings.suffix)
-            clean_name = prefix + bpy.path.clean_name(job['name']) + suffix
-            key = str((job['directory'] / clean_name).resolve())
+            key = str((job['directory'] / job['name']).resolve())
             if key in seen:
-                collisions.append(clean_name)
+                collisions.append(job['name'])
             else:
                 seen.add(key)
         return collisions
 
     def _resolve_tokens(self, text, source_obj=None, collection=None):
-        """Replaces interpolation tokens and normalizes paths to universal forward slashes."""
-        if not text:
-            return ""
-            
-        import datetime
-        
-        # Enforce universal forward slash paths
-        text = text.replace("\\", "/")
-        
-        # 1. Blend file token
-        blend_name = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
-        text = text.replace("$BLEND", blend_name)
-        
-        # 2. Scene token
-        scene_name = bpy.context.scene.name if bpy.context.scene else "Scene"
-        text = text.replace("$SCENE", scene_name)
-        
-        # 3. Object token
-        if source_obj:
-            obj_name = bpy.path.clean_name(source_obj.name)
-            text = text.replace("$OBJ", obj_name)
-        else:
-            text = text.replace("$OBJ", "")
-        
-        # 4. Collection and hierarchy path tokens
-        coll_name = ""
-        coll_path = ""
-        
-        coll_to_use = collection
-        if not coll_to_use and source_obj and source_obj.users_collection:
-            coll_to_use = source_obj.users_collection[0]
-            
-        if coll_to_use and coll_to_use.name != "Scene Collection":
-            coll_name = bpy.path.clean_name(coll_to_use.name)
-            hierarchy = utils.get_collection_hierarchy(coll_to_use.name)
-            if hierarchy:
-                # Sanitize each path component (consistent with $COLL) while
-                # preserving the directory structure as forward slashes.
-                parts = hierarchy.replace("\\", "/").split("/")
-                coll_path = "/".join(bpy.path.clean_name(p) for p in parts if p)
-            else:
-                coll_path = coll_name
-                
-        text = text.replace("$COLL_PATH", coll_path)
-        text = text.replace("$COLL", coll_name)
-        
-        # 5. Temporal stamps
-        now = datetime.datetime.now()
-        text = text.replace("$DATE", now.strftime("%Y-%m-%d"))
-        text = text.replace("$TIME", now.strftime("%H%M%S"))
-        
-        return text
+        """Resolve naming tokens (delegates to the shared utils resolver)."""
+        return utils.resolve_name_tokens(text, source_obj, collection)
 
     # =================================================================
     # 2. STATE MANAGEMENT (CONTEXT MANAGERS)
@@ -351,30 +299,6 @@ class EXPORT_MESH_OT_batch(Operator):
     # 3. OBJECT GATHERING AND JOB CREATION
     # =================================================================
 
-    def _get_filtered_objects(self, context, settings):
-        limit = settings.limit
-        if limit == 'SELECTED': source = context.selected_objects[:]
-        elif limit == 'VISIBLE': source = [obj for obj in context.view_layer.objects if obj.visible_get()]
-        elif limit == 'RENDERABLE':
-            renderable_names = {obj.name for obj in self._get_renderable_objects(context.scene)}
-            source = [obj for obj in context.view_layer.objects if obj.name in renderable_names]
-        elif limit == 'LIST':
-            list_objects = {item.object for item in settings.export_list if item.object is not None}
-            source = [obj for obj in context.view_layer.objects if obj in list_objects]
-        else: source = []
-
-        return [obj for obj in source if obj.type in settings.object_types]
-
-    def _get_renderable_objects(self, scene):
-        renderable = []
-        def check_collection(collection):
-            if collection.hide_render: return
-            for obj in collection.objects:
-                if not obj.hide_render: renderable.append(obj)
-            for child in collection.children: check_collection(child)
-        check_collection(scene.collection)
-        return renderable
-
     def _generate_export_jobs(self, settings, objects, base_dir):
         mode = settings.mode
         object_set = set(objects)
@@ -396,22 +320,22 @@ class EXPORT_MESH_OT_batch(Operator):
             for coll, coll_objects in collections_map.items():
                 yield self._build_job(settings, coll.name, coll_objects, base_dir, collection=coll)
         elif mode == 'SCENE':
-            if settings.prefix:
-                filename = ''
-            else:
-                filename = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
-            yield self._build_job(settings, filename, objects, base_dir)
+            blend_name = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
+            yield self._build_job(settings, blend_name, objects, base_dir)
 
-    def _build_job(self, settings, name, objects, base_dir, source_obj=None, collection=None):
-        resolved_prefix = self._resolve_tokens(settings.prefix, source_obj, collection)
-        resolved_suffix = self._resolve_tokens(settings.suffix, source_obj, collection)
+    def _build_job(self, settings, default_name, objects, base_dir, source_obj=None, collection=None):
+        # The whole file name comes from the single 'filename' template.
+        resolved = self._resolve_tokens(settings.filename, source_obj, collection)
+
+        # If the template resolves to nothing usable (e.g. the default $OBJ in a
+        # mode with no source object), fall back to the mode's natural name.
+        if not resolved.strip().strip("/"):
+            resolved = bpy.path.clean_name(default_name)
 
         return {
-            'name': name,
+            'name': resolved,
             'objects': objects,
             'directory': base_dir,
-            'prefix': resolved_prefix,
-            'suffix': resolved_suffix
         }
 
     # =================================================================
@@ -443,11 +367,9 @@ class EXPORT_MESH_OT_batch(Operator):
             self._copy_exported_file(settings, filepath)
 
     def _dispatch_export(self, settings, job):
-        prefix = job.get('prefix', settings.prefix)
-        suffix = job.get('suffix', settings.suffix)
-        clean_name = prefix + bpy.path.clean_name(job['name']) + suffix
-
-        fp_no_ext = job['directory'] / clean_name
+        # job['name'] is the already-resolved filename template (tokens expanded,
+        # path components sanitised, subdirectory slashes preserved).
+        fp_no_ext = job['directory'] / job['name']
         fp_no_ext.parent.mkdir(parents=True, exist_ok=True)
 
         fmt = settings.file_format
@@ -638,6 +560,20 @@ class BATCH_EXPORT_OT_list_remove_invalid(Operator):
         return {'FINISHED'}
 
 
+class BATCH_EXPORT_OT_insert_token(Operator):
+    """Append this token to the filename"""
+    bl_idname = "batch_export.insert_token"
+    bl_label = "Insert Token"
+    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
+
+    token: StringProperty()
+
+    def execute(self, context):
+        settings = context.scene.batch_export
+        settings.filename = settings.filename + self.token
+        return {'FINISHED'}
+
+
 class BATCH_EXPORT_OT_open_directory(Operator):
     """Open the export directory in the system file browser"""
     bl_idname = "batch_export.open_directory"
@@ -664,5 +600,6 @@ registry = [
     BATCH_EXPORT_OT_list_add,
     BATCH_EXPORT_OT_list_remove,
     BATCH_EXPORT_OT_list_remove_invalid,
+    BATCH_EXPORT_OT_insert_token,
     BATCH_EXPORT_OT_open_directory,
 ]

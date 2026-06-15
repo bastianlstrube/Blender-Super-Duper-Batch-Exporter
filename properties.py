@@ -6,6 +6,58 @@ from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty,
                        PointerProperty)
 from .utils import get_operator_presets, get_preset_index, preset_enum_items_refs
 import os
+import re
+
+# Set True while the load-time migration runs so reassigning `mode` doesn't fire
+# the identity-token swap before the migration has rebuilt the filename itself.
+_suppress_mode_update = False
+
+# Which identity token represents the "thing being named" in each mode.
+_MODE_IDENTITY = {
+    "OBJECTS": "$OBJ",
+    "PARENT_OBJECTS": "$OBJ",
+    "COLLECTIONS": "$COLL",
+    "SCENE": "$SCENE",
+}
+
+# Regexes that match each identity token. $COLL uses a negative lookahead so it
+# never matches the $COLL_PATH directory token.
+_IDENTITY_PATTERNS = {
+    "$OBJ": r"\$OBJ",
+    "$COLL": r"\$COLL(?!_PATH)",
+    "$SCENE": r"\$SCENE",
+    "$BLEND": r"\$BLEND",
+}
+
+
+def _swap_identity_token(name, target):
+    """Replace whichever identity token is present with `target`.
+
+    Leaves literal text (prefix/suffix) and path tokens like $COLL_PATH untouched.
+    If `target` is already present, or no identity token is found, returns `name`
+    unchanged so a user's fully custom template is never clobbered.
+    """
+    if re.search(_IDENTITY_PATTERNS[target], name):
+        return name
+    for token, pattern in _IDENTITY_PATTERNS.items():
+        if token == target:
+            continue
+        if re.search(pattern, name):
+            return re.sub(pattern, lambda m: target, name, count=1)
+    return name
+
+
+def update_mode_identity_token(self, context):
+    """When the mode changes, swap the primary identity token in the filename
+    (e.g. $OBJ <-> $COLL <-> $SCENE) so the template stays meaningful."""
+    if _suppress_mode_update:
+        return
+    target = _MODE_IDENTITY.get(self.mode)
+    if not target:
+        return
+    new_name = _swap_identity_token(self.filename, target)
+    if new_name != self.filename:
+        self.filename = new_name
 
 def update_directory_relative(self, context):
     """
@@ -47,16 +99,16 @@ def get_mode_items(self, context):
         ("COLLECTIONS", "Collections", "Each collection is exported into its own file", 3),
         ("SCENE", "Scene", "Export the scene into one file\nIf Filename is empty, .blend file name is used.", 6),
     ]
-    
+
     # Read the raw property value directly from the data block
     current_raw = self.get("mode")
-    
+
     # If the file contains a legacy mode, expose it to the loader so it won't clamp to 'SCENE'
     if current_raw in {"COLLECTION_SUBDIRECTORIES", 4}:
         items.append(("COLLECTION_SUBDIRECTORIES", "[Legacy] Collection Sub-Directories", "Legacy mode", 4))
     elif current_raw in {"COLLECTION_SUBDIR_PARENTS", 5}:
         items.append(("COLLECTION_SUBDIR_PARENTS", "[Legacy] Collection Sub-Directories By Parent", "Legacy mode", 5))
-        
+
     return items
 
 
@@ -79,22 +131,17 @@ class BatchExportSettings(PropertyGroup):
         default="//",
         subtype='DIR_PATH',
     )
-    prefix: StringProperty(
-        name="Prefix",
+    filename: StringProperty(
+        name="Filename",
         description=(
-            "Text to put at the beginning of all exported file names.\n"
+            "Name for each exported file (without the extension).\n"
             "Supports subdirectories with '/' as a universal separator.\n"
-            "Tokens: $OBJ (Object), $COLL (Immediate Collection), $COLL_PATH (Full Collection Hierarchy), "
-            "$SCENE (Scene), $BLEND (File Name), $DATE (YYYY-MM-DD), $TIME (HHMMSS)"
+            "Use the dropdown to insert tokens:\n"
+            "$OBJ (Object), $COLL (Immediate Collection), $COLL_PATH (Full Collection Hierarchy), "
+            "$SCENE (Scene), $BLEND (File Name), $DATE (YYYY-MM-DD), $TIME (HHMMSS).\n"
+            "If left blank it falls back to the object / collection / .blend name for the mode."
         ),
-    )
-    suffix: StringProperty(
-        name="Suffix",
-        description=(
-            "Text to put at the end of all exported file names.\n"
-            "Supports subdirectories with '/' as a universal separator.\n"
-            "Tokens: $OBJ, $COLL, $COLL_PATH, $SCENE, $BLEND, $DATE, $TIME"
-        ),
+        default="$OBJ",
     )
 
     # Export Settings:
@@ -118,6 +165,7 @@ class BatchExportSettings(PropertyGroup):
         name="Mode",
         description="What composition method to use for splitting up files",
         items=get_mode_items,
+        update=update_mode_identity_token,
     )
     limit: EnumProperty(
         name="Limit to",

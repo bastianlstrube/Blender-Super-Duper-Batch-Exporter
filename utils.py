@@ -1,6 +1,140 @@
 import bpy
 import os
+import datetime
 from pathlib import Path
+
+
+def resolve_name_tokens(text, source_obj=None, collection=None):
+    """Replaces interpolation tokens and normalizes paths to universal forward slashes.
+
+    Shared by the export operator (for the real file name) and the panel (for the
+    greyed-out live preview), so both always agree on the result.
+    """
+    if not text:
+        return ""
+
+    # Enforce universal forward slash paths
+    text = text.replace("\\", "/")
+
+    # 1. Blend file token
+    blend_name = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
+    text = text.replace("$BLEND", blend_name)
+
+    # 2. Scene token
+    scene_name = bpy.context.scene.name if bpy.context.scene else "Scene"
+    text = text.replace("$SCENE", scene_name)
+
+    # 3. Object token
+    if source_obj:
+        text = text.replace("$OBJ", bpy.path.clean_name(source_obj.name))
+    else:
+        text = text.replace("$OBJ", "")
+
+    # 4. Collection and hierarchy path tokens
+    coll_name = ""
+    coll_path = ""
+
+    coll_to_use = collection
+    if not coll_to_use and source_obj and source_obj.users_collection:
+        coll_to_use = source_obj.users_collection[0]
+
+    if coll_to_use and coll_to_use.name != "Scene Collection":
+        coll_name = bpy.path.clean_name(coll_to_use.name)
+        hierarchy = get_collection_hierarchy(coll_to_use.name)
+        if hierarchy:
+            # Sanitize each path component (consistent with $COLL) while
+            # preserving the directory structure as forward slashes.
+            parts = hierarchy.replace("\\", "/").split("/")
+            coll_path = "/".join(bpy.path.clean_name(p) for p in parts if p)
+        else:
+            coll_path = coll_name
+
+    text = text.replace("$COLL_PATH", coll_path)
+    text = text.replace("$COLL", coll_name)
+
+    # 5. Temporal stamps
+    now = datetime.datetime.now()
+    text = text.replace("$DATE", now.strftime("%Y-%m-%d"))
+    text = text.replace("$TIME", now.strftime("%H%M%S"))
+
+    return text
+
+
+def get_renderable_objects(scene):
+    renderable = []
+    def check_collection(collection):
+        if collection.hide_render:
+            return
+        for obj in collection.objects:
+            if not obj.hide_render:
+                renderable.append(obj)
+        for child in collection.children:
+            check_collection(child)
+    check_collection(scene.collection)
+    return renderable
+
+
+def get_filtered_objects(context, settings):
+    """The objects that would actually be exported under the current Limit / Type filters."""
+    limit = settings.limit
+    if limit == 'SELECTED':
+        source = context.selected_objects[:]
+    elif limit == 'VISIBLE':
+        source = [obj for obj in context.view_layer.objects if obj.visible_get()]
+    elif limit == 'RENDERABLE':
+        renderable_names = {obj.name for obj in get_renderable_objects(context.scene)}
+        source = [obj for obj in context.view_layer.objects if obj.name in renderable_names]
+    elif limit == 'LIST':
+        list_objects = {item.object for item in settings.export_list if item.object is not None}
+        source = [obj for obj in context.view_layer.objects if obj in list_objects]
+    else:
+        source = []
+
+    return [obj for obj in source if obj.type in settings.object_types]
+
+
+def _fallback_to_default(resolved, default_name):
+    """Mirror the operator's behaviour: if a template resolves to nothing usable,
+    fall back to the mode's natural (object / collection / .blend) name."""
+    if not resolved.strip().strip("/"):
+        return bpy.path.clean_name(default_name)
+    return resolved
+
+
+def preview_export_name(context, settings):
+    """Resolve the filename template for the FIRST object that would be exported.
+
+    Returns the exact name that will be written to disk (minus the extension), so
+    the panel can show an honest greyed-out live preview. Returns "" when nothing
+    matches the current filters.
+    """
+    mode = settings.mode
+
+    if mode == 'SCENE':
+        blend = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
+        return _fallback_to_default(resolve_name_tokens(settings.filename), blend)
+
+    objs = get_filtered_objects(context, settings)
+    if not objs:
+        return ""
+
+    source_obj = None
+    collection = None
+
+    if mode == 'COLLECTIONS':
+        first = objs[0]
+        collection = first.users_collection[0] if first.users_collection else None
+        default_name = collection.name if collection else first.name
+    else:  # OBJECTS / PARENT_OBJECTS
+        if mode == 'PARENT_OBJECTS':
+            object_set = set(objs)
+            source_obj = next((o for o in objs if o.parent not in object_set), objs[0])
+        else:
+            source_obj = objs[0]
+        default_name = source_obj.name
+
+    resolved = resolve_name_tokens(settings.filename, source_obj, collection)
+    return _fallback_to_default(resolved, default_name)
 
 
 def resolve_base_dir(settings, prefs):

@@ -5,7 +5,7 @@
 One click export to multiple files. Options are set once and stored with blend file for consistent export to game engines or other 3D software. With options to limit export, e.g. **Render Enabled**, you'll never have repeat the same selection each time you export.
 
 ### Export Options
-Use existing export presets, set options like **Output Directory**, **Prefix**, **Suffix**, filter by **Type** or set object **Location**, **Rotation** or **Scale** on export. 
+Use existing export presets, set options like **Output Directory** and a tokenised **Filename** (insert tokens like `$OBJ`, `$COLL` or `$DATE` from the dropdown), filter by **Type** or set object **Location**, **Rotation** or **Scale** on export. 
 
 **Mode** exports a file for each:
 - **Object**

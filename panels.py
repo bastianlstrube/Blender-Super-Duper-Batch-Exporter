@@ -1,6 +1,7 @@
 import bpy
-from bpy.types import Panel, UIList
+from bpy.types import Panel, UIList, Menu
 from . import get_icon_id
+from . import utils
 
 
 class BATCH_EXPORT_UL_object_list(UIList):
@@ -9,6 +10,31 @@ class BATCH_EXPORT_UL_object_list(UIList):
             layout.label(text=item.object.name, icon_value=layout.icon(item.object))
         else:
             layout.label(text="(deleted)", icon='ERROR')
+
+
+class BATCH_EXPORT_MT_token_menu(Menu):
+    """Dropdown of naming tokens that get appended to the filename."""
+    bl_idname = "BATCH_EXPORT_MT_token_menu"
+    bl_label = "Insert Token"
+
+    # (token, human-readable label)
+    tokens = (
+        ("$OBJ", "Object Name"),
+        ("$COLL", "Collection"),
+        ("$COLL_PATH", "Collection Hierarchy"),
+        ("$SCENE", "Scene Name"),
+        ("$BLEND", "Blend File Name"),
+        ("$DATE", "Date (YYYY-MM-DD)"),
+        ("$TIME", "Time (HHMMSS)"),
+        ("/", "Sub-Directory"),
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        for token, label in self.tokens:
+            layout.operator(
+                "batch_export.insert_token", text=f"{label}   {token}"
+            ).token = token
 
 
 # Draws the .blend file specific settings used in the
@@ -41,11 +67,18 @@ def draw_settings(self, context):
         col.prop(settings, 'copy_directory')
     if copies:
         col.prop(settings, 'copy_on_export')
-    if settings.mode == 'SCENE':
-        col.prop(settings, 'prefix', text = 'Filename')
+    name_row = col.row(align=True)
+    name_row.prop(settings, 'filename')
+    name_row.menu("BATCH_EXPORT_MT_token_menu", text='', icon='DOWNARROW_HLT')
+
+    # Greyed-out live preview of the first file that would be exported.
+    preview = utils.preview_export_name(context, settings)
+    preview_row = col.row()
+    preview_row.active = False
+    if preview:
+        preview_row.label(text=preview, icon='RIGHTARROW_THIN')
     else:
-        col.prop(settings, 'prefix')
-        col.prop(settings, 'suffix')
+        preview_row.label(text="(no objects match the filter)", icon='RIGHTARROW_THIN')
 
     self.layout.separator()
 
@@ -209,6 +242,7 @@ class POPOVER_PT_batch_export(Panel):
 
 registry = [
     BATCH_EXPORT_UL_object_list,
+    BATCH_EXPORT_MT_token_menu,
     POPOVER_PT_batch_export,
     VIEW3D_PT_batch_export,
 ]
