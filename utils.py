@@ -101,18 +101,37 @@ def _fallback_to_default(resolved, default_name):
     return resolved
 
 
+def get_export_extension(settings):
+    """The file extension (including the dot) that the current format will write."""
+    fmt = settings.file_format
+    if fmt == 'glTF':
+        return '.glb' if settings.gltf_format == 'GLB' else '.gltf'
+    if fmt == 'USD':
+        return settings.usd_format
+    return {
+        'FBX': '.fbx',
+        'ABC': '.abc',
+        'OBJ': '.obj',
+        'PLY': '.ply',
+        'STL': '.stl',
+        'SVG': '.svg',
+        'PDF': '.pdf',
+    }.get(fmt, '')
+
+
 def preview_export_name(context, settings):
     """Resolve the filename template for the FIRST object that would be exported.
 
-    Returns the exact name that will be written to disk (minus the extension), so
-    the panel can show an honest greyed-out live preview. Returns "" when nothing
+    Returns the exact name that will be written to disk (including the extension),
+    so the panel can show an honest greyed-out live preview. Returns "" when nothing
     matches the current filters.
     """
     mode = settings.mode
+    ext = get_export_extension(settings)
 
     if mode == 'SCENE':
         blend = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
-        return _fallback_to_default(resolve_name_tokens(settings.filename), blend)
+        return _fallback_to_default(resolve_name_tokens(settings.filename), blend) + ext
 
     objs = get_filtered_objects(context, settings)
     if not objs:
@@ -134,7 +153,7 @@ def preview_export_name(context, settings):
         default_name = source_obj.name
 
     resolved = resolve_name_tokens(settings.filename, source_obj, collection)
-    return _fallback_to_default(resolved, default_name)
+    return _fallback_to_default(resolved, default_name) + ext
 
 
 def resolve_base_dir(settings, prefs):
