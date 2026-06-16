@@ -96,8 +96,16 @@ def get_filtered_objects(context, settings):
 def _fallback_to_default(resolved, default_name):
     """Mirror the operator's behaviour: if a template resolves to nothing usable,
     fall back to the mode's natural (object / collection / .blend) name."""
-    if not resolved.strip().strip("/"):
+    if not resolved.strip():
         return bpy.path.clean_name(default_name)
+    
+    # Normalize path formatting to forward slashes
+    normalized = resolved.replace("\\", "/")
+    
+    # If the path ends with a slash or the filename token is empty/whitespace
+    if normalized.endswith("/") or not normalized.split("/")[-1].strip():
+        return normalized + bpy.path.clean_name(default_name)
+        
     return resolved
 
 
@@ -122,20 +130,23 @@ def get_export_extension(settings):
 def preview_export_name(context, settings):
     """Resolve the filename template for the FIRST object that would be exported.
 
-    Returns the exact name that will be written to disk (including the extension),
-    so the panel can show an honest greyed-out live preview. Returns "" when nothing
-    matches the current filters.
+    Returns a tuple: (exact_name_with_extension, has_unresolved_tokens)
     """
     mode = settings.mode
     ext = get_export_extension(settings)
+    filename_template = settings.filename
 
     if mode == 'SCENE':
         blend = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
-        return _fallback_to_default(resolve_name_tokens(settings.filename), blend) + ext
+        resolved = resolve_name_tokens(filename_template, None, None)
+        
+        # Scene mode has no object or collection context, so these tokens will always fail
+        has_warning = any(t in filename_template for t in ("$OBJ", "$COLL", "$COLL_PATH"))
+        return _fallback_to_default(resolved, blend) + ext, has_warning
 
     objs = get_filtered_objects(context, settings)
     if not objs:
-        return ""
+        return "", False
 
     source_obj = None
     collection = None
@@ -151,9 +162,20 @@ def preview_export_name(context, settings):
         else:
             source_obj = objs[0]
         default_name = source_obj.name
+        if source_obj and source_obj.users_collection:
+            collection = source_obj.users_collection[0]
 
-    resolved = resolve_name_tokens(settings.filename, source_obj, collection)
-    return _fallback_to_default(resolved, default_name) + ext
+    resolved = resolve_name_tokens(filename_template, source_obj, collection)
+    
+    # Check if used tokens are missing their required runtime data
+    has_warning = False
+    if "$OBJ" in filename_template and not source_obj:
+        has_warning = True
+    if "$COLL" in filename_template or "$COLL_PATH" in filename_template:
+        if not collection or collection.name == "Scene Collection":
+            has_warning = True
+
+    return _fallback_to_default(resolved, default_name) + ext, has_warning
 
 
 def resolve_base_dir(settings, prefs):

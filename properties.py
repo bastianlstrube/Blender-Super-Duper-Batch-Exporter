@@ -17,7 +17,7 @@ _MODE_IDENTITY = {
     "OBJECTS": "$OBJ",
     "PARENT_OBJECTS": "$OBJ",
     "COLLECTIONS": "$COLL",
-    "SCENE": "$SCENE",
+    "SCENE": "$BLEND",
 }
 
 # Regexes that match each identity token. $COLL uses a negative lookahead so it
@@ -31,19 +31,32 @@ _IDENTITY_PATTERNS = {
 
 
 def _swap_identity_token(name, target):
-    """Replace whichever identity token is present with `target`.
+    """Replace whichever identity token is present in the filename leaf with `target`.
 
-    Leaves literal text (prefix/suffix) and path tokens like $COLL_PATH untouched.
-    If `target` is already present, or no identity token is found, returns `name`
+    Leaves literal text (prefix/suffix), path tokens like $COLL_PATH, and subdirectories untouched.
+    If `target` is already present in the leaf, or no identity token is found, returns `name`
     unchanged so a user's fully custom template is never clobbered.
     """
-    if re.search(_IDENTITY_PATTERNS[target], name):
+    # Isolate directory components from the leaf filename
+    last_slash_idx = max(name.rfind("/"), name.rfind("\\"))
+    if last_slash_idx != -1:
+        directory_part = name[:last_slash_idx + 1]
+        filename_part = name[last_slash_idx + 1:]
+    else:
+        directory_part = ""
+        filename_part = name
+
+    # Check and swap only inside the leaf filename component
+    if re.search(_IDENTITY_PATTERNS[target], filename_part):
         return name
+        
     for token, pattern in _IDENTITY_PATTERNS.items():
         if token == target:
             continue
-        if re.search(pattern, name):
-            return re.sub(pattern, lambda m: target, name, count=1)
+        if re.search(pattern, filename_part):
+            filename_part = re.sub(pattern, lambda m: target, filename_part, count=1)
+            return directory_part + filename_part
+            
     return name
 
 

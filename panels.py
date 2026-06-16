@@ -62,22 +62,40 @@ def draw_settings(self, context):
     # Options
     self.layout.separator()
     col = self.layout.column(align=True)
+    #col.use_property_split = True
+
     col.prop(settings, 'directory')
     if copies and settings.copy_on_export:
         col.prop(settings, 'copy_directory')
     if copies:
         col.prop(settings, 'copy_on_export')
+    
+    preview, has_warning = utils.preview_export_name(context, settings)
+    
     name_row = col.row(align=True)
+    if has_warning:
+        name_row.alert = True
     name_row.prop(settings, 'filename')
     name_row.menu("BATCH_EXPORT_MT_token_menu", text='', icon='DOWNARROW_HLT')
 
     # Greyed-out live preview of the first file that would be exported.
-    preview = utils.preview_export_name(context, settings)
-    preview_row = col.row()
-    preview_row.active = False
     if preview:
+        # Line 1: Clear, un-truncated file name path preview
+        preview_row = col.row()
+        preview_row.use_property_split = False
+        preview_row.active = False  # Standard clean greyed-out look
         preview_row.label(text=preview, icon='RIGHTARROW_THIN')
+        
+        # Line 2: Explicit warning statement if tokens are missing their execution context
+        if has_warning:
+            warning_row = col.row()
+            warning_row.use_property_split = False
+            warning_row.alert = True  # Glows this layout line red
+            warning_row.label(text="Unresolved Tokens Found", icon='GHOST_DISABLED')
     else:
+        preview_row = col.row()
+        preview_row.use_property_split = False
+        preview_row.active = False
         preview_row.label(text="(no objects match the filter)", icon='RIGHTARROW_THIN')
 
     self.layout.separator()

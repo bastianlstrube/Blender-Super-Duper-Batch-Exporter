@@ -327,10 +327,8 @@ class EXPORT_MESH_OT_batch(Operator):
         # The whole file name comes from the single 'filename' template.
         resolved = self._resolve_tokens(settings.filename, source_obj, collection)
 
-        # If the template resolves to nothing usable (e.g. the default $OBJ in a
-        # mode with no source object), fall back to the mode's natural name.
-        if not resolved.strip().strip("/"):
-            resolved = bpy.path.clean_name(default_name)
+        # Force the actual export pipeline to follow the exact same rules as the UI panel preview
+        resolved = utils._fallback_to_default(resolved, default_name)
 
         return {
             'name': resolved,
