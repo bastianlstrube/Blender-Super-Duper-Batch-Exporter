@@ -512,6 +512,38 @@ class BATCH_EXPORT_OT_list_add(Operator):
             self.report({'INFO'}, "Selected objects are already in the list.")
         return {'FINISHED'}
 
+class BATCH_EXPORT_OT_list_add_collection(Operator):
+    """Add active collection to the export list"""
+    bl_idname = "batch_export.list_add_collection"
+    bl_label = "Add Collection"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        # Only allow adding if a collection is actually selected
+        return context.collection is not None
+
+    def execute(self, context):
+        settings = context.scene.batch_export
+        coll = context.collection
+        
+        # Prevent adding the base "Scene Collection" 
+        if coll == context.scene.collection:
+            self.report({'WARNING'}, "Cannot add the master Scene Collection.")
+            return {'CANCELLED'}
+
+        # Deduplication check
+        existing = {item.collection for item in settings.export_list if item.collection}
+        if coll in existing:
+            self.report({'INFO'}, "Collection already in list.")
+            return {'FINISHED'}
+
+        item = settings.export_list.add()
+        item.collection = coll
+        
+        settings.export_list_index = len(settings.export_list) - 1
+        self.report({'INFO'}, f"Added collection '{coll.name}' to export list.")
+        return {'FINISHED'}
 
 class BATCH_EXPORT_OT_list_remove(Operator):
     """Remove the active object from the export list"""
@@ -557,6 +589,29 @@ class BATCH_EXPORT_OT_list_remove_invalid(Operator):
             self.report({'INFO'}, "No invalid entries found.")
         return {'FINISHED'}
 
+class BATCH_EXPORT_OT_clear_list(Operator):
+    """Remove all objects from the export list"""
+    bl_idname = "batch_export.clear_list"
+    bl_label = "Clear List"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        # Only enable the button if there is actually something in the list
+        return len(context.scene.batch_export.export_list) > 0
+
+    def execute(self, context):
+        settings = context.scene.batch_export
+        list_length = len(settings.export_list)
+        
+        # Clear the collection
+        settings.export_list.clear()
+        
+        # Reset the index
+        settings.export_list_index = 0
+        
+        self.report({'INFO'}, f"Cleared {list_length} item(s) from the export list.")
+        return {'FINISHED'}
 
 class BATCH_EXPORT_OT_insert_token(Operator):
     """Append this token to the filename"""
@@ -596,8 +651,10 @@ class BATCH_EXPORT_OT_open_directory(Operator):
 registry = [
     EXPORT_MESH_OT_batch,
     BATCH_EXPORT_OT_list_add,
+    BATCH_EXPORT_OT_list_add_collection,
     BATCH_EXPORT_OT_list_remove,
     BATCH_EXPORT_OT_list_remove_invalid,
+    BATCH_EXPORT_OT_clear_list,
     BATCH_EXPORT_OT_insert_token,
     BATCH_EXPORT_OT_open_directory,
 ]

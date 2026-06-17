@@ -8,8 +8,10 @@ class BATCH_EXPORT_UL_object_list(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_property, index=0, flt_flag=0):
         if item.object:
             layout.label(text=item.object.name, icon_value=layout.icon(item.object))
+        elif item.collection:
+            layout.label(text=item.collection.name, icon='OUTLINER_COLLECTION')
         else:
-            layout.label(text="(deleted)", icon='ERROR')
+            layout.label(text="(invalid)", icon='ERROR')
 
 
 class BATCH_EXPORT_MT_token_menu(Menu):
@@ -116,9 +118,16 @@ def draw_settings(self, context):
         )
         side = list_row.column(align=True)
         side.operator("batch_export.list_add", text="", icon='ADD')
+        side.operator("batch_export.list_add_collection", text="", icon='OUTLINER_COLLECTION')
         side.operator("batch_export.list_remove", text="", icon='REMOVE')
         side.separator()
-        side.operator("batch_export.list_remove_invalid", text="", icon='TRASH')
+        side.operator("batch_export.list_remove_invalid", text="", icon='X')
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.operator("batch_export.clear_list", text="", icon='TRASH')
 
     self.layout.separator()
 
@@ -245,7 +254,7 @@ class POPOVER_PT_batch_export(Panel):
     bl_space_type = 'TOPBAR'
     bl_region_type = 'HEADER'
     bl_label = "Super Duper Batch Exporter"
-    bl_ui_units_x = 12
+    bl_ui_units_x = 14
 
     @classmethod
     def poll(cls, context):

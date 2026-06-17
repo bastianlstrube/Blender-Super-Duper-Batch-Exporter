@@ -98,6 +98,7 @@ def update_directory_relative(self, context):
 
 class ExportObjectItem(PropertyGroup):
     object: PointerProperty(name="Object", type=bpy.types.Object)
+    collection: PointerProperty(name="Collection", type=bpy.types.Collection)
 
 
 def get_mode_items(self, context):

@@ -77,6 +77,7 @@ def get_renderable_objects(scene):
 def get_filtered_objects(context, settings):
     """The objects that would actually be exported under the current Limit / Type filters."""
     limit = settings.limit
+    
     if limit == 'SELECTED':
         source = context.selected_objects[:]
     elif limit == 'VISIBLE':
@@ -84,12 +85,31 @@ def get_filtered_objects(context, settings):
     elif limit == 'RENDERABLE':
         renderable_names = {obj.name for obj in get_renderable_objects(context.scene)}
         source = [obj for obj in context.view_layer.objects if obj.name in renderable_names]
+        
     elif limit == 'LIST':
-        list_objects = {item.object for item in settings.export_list if item.object is not None}
-        source = [obj for obj in context.view_layer.objects if obj in list_objects]
+        # Create a set to handle duplicates automatically
+        export_set = set()
+        
+        # Helper to collect objects recursively
+        def add_coll_recursive(coll):
+            for obj in coll.objects:
+                export_set.add(obj)
+            for child in coll.children:
+                add_coll_recursive(child)
+        
+        for item in settings.export_list:
+            if item.object:
+                export_set.add(item.object)
+            if item.collection:
+                add_coll_recursive(item.collection)
+        
+        # Convert set back to a list to maintain compatibility with the rest of the code
+        source = list(export_set)
+        
     else:
         source = []
 
+    # Final filter: Ensures we only return objects that match the user's "Include" settings
     return [obj for obj in source if obj.type in settings.object_types]
 
 
