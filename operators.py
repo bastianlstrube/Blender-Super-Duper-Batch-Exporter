@@ -485,6 +485,16 @@ class EXPORT_MESH_OT_batch(Operator):
         return full_path
 
 
+class BATCH_EXPORT_OT_cycle_preview(Operator):
+    bl_idname = "batch_export.cycle_preview"
+    bl_label = "Cycle Preview"
+
+    def execute(self, context):
+        settings = context.scene.batch_export
+        # Increment and loop back to 0
+        settings.preview_index += 1
+        return {'FINISHED'}
+
 class BATCH_EXPORT_OT_list_add(Operator):
     """Add selected objects to the export list"""
     bl_idname = "batch_export.list_add"
@@ -650,6 +660,7 @@ class BATCH_EXPORT_OT_open_directory(Operator):
 
 registry = [
     EXPORT_MESH_OT_batch,
+    BATCH_EXPORT_OT_cycle_preview,
     BATCH_EXPORT_OT_list_add,
     BATCH_EXPORT_OT_list_add_collection,
     BATCH_EXPORT_OT_list_remove,

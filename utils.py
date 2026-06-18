@@ -105,7 +105,19 @@ def get_filtered_objects(context, settings):
         
         # Convert set back to a list to maintain compatibility with the rest of the code
         source = list(export_set)
-        
+
+        # Secondary Limit Filter
+        if settings.use_secondary:
+            secondary = settings.secondary_limit
+            if secondary == 'SELECTED':
+                secondary_objs = set(context.selected_objects)
+                source = [obj for obj in source if obj in secondary_objs]
+            elif secondary == 'VISIBLE':
+                source = [obj for obj in source if obj.visible_get()]
+            elif secondary == 'RENDERABLE':
+                renderable_names = {obj.name for obj in get_renderable_objects(context.scene)}
+                source = [obj for obj in source if obj.name in renderable_names]
+
     else:
         source = []
 
@@ -146,11 +158,26 @@ def get_export_extension(settings):
         'PDF': '.pdf',
     }.get(fmt, '')
 
+def get_unique_preview_paths(context, settings):
+    """Returns a list of all unique file paths that would be generated."""
+    # Assuming you already have a way to generate jobs (like in your operator)
+    # You can reuse the logic that determines the export path for each object/collection
+    # Here is a simplified version:
+    paths = []
+    objs = get_filtered_objects(context, settings)
+    
+    for obj in objs:
+        # Replicate your naming logic
+        coll = obj.users_collection[0] if obj.users_collection else None
+        path = resolve_name_tokens(settings.filename, obj, coll)
+        if path not in paths:
+            paths.append(path)
+    return paths
 
 def preview_export_name(context, settings):
-    """Resolve the filename template for the FIRST object that would be exported.
-
-    Returns a tuple: (exact_name_with_extension, has_unresolved_tokens)
+    """
+    Resolve the filename template for the object at the current preview_index.
+    Returns: (exact_name_with_extension, has_unresolved_tokens, idx)
     """
     mode = settings.mode
     ext = get_export_extension(settings)
@@ -159,35 +186,44 @@ def preview_export_name(context, settings):
     if mode == 'SCENE':
         blend = Path(bpy.data.filepath).with_suffix('').name if bpy.data.is_saved else "Untitled"
         resolved = resolve_name_tokens(filename_template, None, None)
-        
-        # Scene mode has no object or collection context, so these tokens will always fail
         has_warning = any(t in filename_template for t in ("$OBJ", "$COLL", "$COLL_PATH"))
-        return _fallback_to_default(resolved, blend) + ext, has_warning
+        return _fallback_to_default(resolved, blend) + ext, has_warning, 0
 
+    # 1. Get unique paths for the cycling index
+    unique_paths = get_unique_preview_paths(context, settings)
+    if not unique_paths:
+        return "", False, 0
+    idx = settings.preview_index % len(unique_paths)
+    
+    # 2. Get all objects to help resolve the context for the current path
     objs = get_filtered_objects(context, settings)
     if not objs:
-        return "", False
+        return "", False, 0
 
+    # 3. Resolve context (source_obj/collection) based on the first object 
+    # that matches the resolved path (to keep the preview consistent)
     source_obj = None
     collection = None
+    
+    # Find an object that maps to the currently selected unique path
+    for obj in objs:
+        coll = obj.users_collection[0] if obj.users_collection else None
+        if resolve_name_tokens(filename_template, obj, coll) == unique_paths[idx]:
+            source_obj = obj
+            collection = coll
+            break
 
-    if mode == 'COLLECTIONS':
-        first = objs[0]
-        collection = first.users_collection[0] if first.users_collection else None
-        default_name = collection.name if collection else first.name
-    else:  # OBJECTS / PARENT_OBJECTS
-        if mode == 'PARENT_OBJECTS':
-            object_set = set(objs)
-            source_obj = next((o for o in objs if o.parent not in object_set), objs[0])
-        else:
-            source_obj = objs[0]
-        default_name = source_obj.name
-        if source_obj and source_obj.users_collection:
-            collection = source_obj.users_collection[0]
+    # 4. Handle Parent Objects logic
+    if mode == 'PARENT_OBJECTS' and source_obj:
+        object_set = set(objs)
+        while source_obj.parent and source_obj.parent in object_set:
+            source_obj = source_obj.parent
+            if source_obj.users_collection:
+                collection = source_obj.users_collection[0]
 
     resolved = resolve_name_tokens(filename_template, source_obj, collection)
     
-    # Check if used tokens are missing their required runtime data
+    # Check for warnings
     has_warning = False
     if "$OBJ" in filename_template and not source_obj:
         has_warning = True
@@ -195,7 +231,7 @@ def preview_export_name(context, settings):
         if not collection or collection.name == "Scene Collection":
             has_warning = True
 
-    return _fallback_to_default(resolved, default_name) + ext, has_warning
+    return _fallback_to_default(resolved, "default") + ext, has_warning, idx
 
 
 def resolve_base_dir(settings, prefs):

@@ -72,7 +72,7 @@ def draw_settings(self, context):
     if copies:
         col.prop(settings, 'copy_on_export')
     
-    preview, has_warning = utils.preview_export_name(context, settings)
+    preview, has_warning, idx = utils.preview_export_name(context, settings)
     
     name_row = col.row(align=True)
     if has_warning:
@@ -88,6 +88,9 @@ def draw_settings(self, context):
         preview_row.active = False  # Standard clean greyed-out look
         preview_row.label(text=preview, icon='RIGHTARROW_THIN')
         
+        # Cycle button
+        preview_row.operator("batch_export.cycle_preview", text="", icon='FILE_REFRESH')
+
         # Line 2: Explicit warning statement if tokens are missing their execution context
         if has_warning:
             warning_row = col.row()
@@ -98,7 +101,7 @@ def draw_settings(self, context):
         preview_row = col.row()
         preview_row.use_property_split = False
         preview_row.active = False
-        preview_row.label(text="(no objects match the filter)", icon='RIGHTARROW_THIN')
+        preview_row.label(text="(No objects match the filter)", icon='RIGHTARROW_THIN')
 
     self.layout.separator()
 
@@ -120,14 +123,33 @@ def draw_settings(self, context):
         side.operator("batch_export.list_add", text="", icon='ADD')
         side.operator("batch_export.list_add_collection", text="", icon='OUTLINER_COLLECTION')
         side.operator("batch_export.list_remove", text="", icon='REMOVE')
+
         side.separator()
-        side.operator("batch_export.list_remove_invalid", text="", icon='X')
+        side.separator()
+        side.separator()
         side.separator()
         side.separator()
         side.separator()
         side.separator()
         side.separator()
         side.operator("batch_export.clear_list", text="", icon='TRASH')
+        side.operator("batch_export.list_remove_invalid", text="", icon='X')
+
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.separator()
+        side.prop(settings, 'use_secondary', text="", icon='FILTER')
+        
+    if settings.use_secondary:
+        col = self.layout.column(align=True)
+        col.prop(settings, "secondary_limit")
 
     self.layout.separator()
 

@@ -191,11 +191,34 @@ class BatchExportSettings(PropertyGroup):
             ("LIST", "List", "Export only objects added to the custom list", 4),
         ],
     )
+    
+    # List related Properties
     export_list: CollectionProperty(type=ExportObjectItem)
     export_list_index: IntProperty(name="Active Object Index", default=0)
+    use_secondary: BoolProperty(
+        name="Extra Limit",
+        description="Further limit which objects in list to export"
+    )
+    secondary_limit: EnumProperty(
+        name="Extra Limit",
+        description="Filter of objects in list, useful when collections are added to the list",
+        items=[
+            ('SELECTED', "Selected", "Only selected objects"),
+            ('VISIBLE', "Visible", "Only visible objects"),
+            ('RENDERABLE', "Renderable", "Only renderable objects"),
+        ],
+        default='VISIBLE',
+    )
+
+    preview_index: IntProperty(
+    name="Preview Index",
+    default=0,
+    description="Index of the object currently being previewed"
+    )
     # Note: the old `prefix_collection` and `full_hierarchy` toggles were removed in
     # favour of the $COLL / $COLL_PATH prefix tokens. Older files carrying those values
     # are converted on load by migrate_legacy_batch_export_modes() in __init__.py.
+
 
     # Format specific options:
     usd_format: EnumProperty(
