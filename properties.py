@@ -1,9 +1,9 @@
 import bpy
 from pathlib import Path
 from bpy.types import PropertyGroup
-from bpy.props import (BoolProperty, IntProperty, EnumProperty, StringProperty,
-                       FloatVectorProperty, FloatProperty, CollectionProperty,
-                       PointerProperty)
+from bpy.props import (BoolProperty, IntProperty, IntVectorProperty, EnumProperty,
+                       StringProperty, FloatVectorProperty, FloatProperty,
+                       CollectionProperty, PointerProperty)
 from .utils import get_operator_presets, get_preset_index, preset_enum_items_refs
 import os
 import re
@@ -127,6 +127,17 @@ def get_mode_items(self, context):
 
 
 class BatchExportSettings(PropertyGroup):
+    # Internal bookkeeping: which addon version last wrote these settings.
+    # Defaults to (0, 0, 0), which flags a file created before versioning was
+    # added (or a brand-new, never-migrated file). Stamped with the current
+    # version by migrate_legacy_batch_export_modes() in __init__.py on load.
+    addon_version: IntVectorProperty(
+        name="Addon Version",
+        description="Version of Super Duper Batch Exporter that last wrote these settings",
+        size=3,
+        default=(0, 0, 0),
+    )
+
     # File Settings:
     directory: StringProperty(
         name="Directory",

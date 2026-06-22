@@ -146,10 +146,12 @@ def draw_settings(self, context):
         side.separator()
         side.separator()
         side.prop(settings, 'use_secondary', text="", icon='FILTER')
-        
-    if settings.use_secondary:
-        col = self.layout.column(align=True)
-        col.prop(settings, "secondary_limit")
+
+        # The secondary filter only applies in LIST mode, so keep its dropdown
+        # inside this block (the toggle above lives here too).
+        if settings.use_secondary:
+            col = self.layout.column(align=True)
+            col.prop(settings, "secondary_limit")
 
     self.layout.separator()
 

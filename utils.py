@@ -222,7 +222,15 @@ def preview_export_name(context, settings):
                 collection = source_obj.users_collection[0]
 
     resolved = resolve_name_tokens(filename_template, source_obj, collection)
-    
+
+    # Mirror the operator's fallback name so a blank/empty template previews the
+    # same thing it would actually export (the object's or collection's name),
+    # not a placeholder.
+    if mode == 'COLLECTIONS':
+        default_name = collection.name if collection else (source_obj.name if source_obj else "default")
+    else:  # OBJECTS / PARENT_OBJECTS
+        default_name = source_obj.name if source_obj else "default"
+
     # Check for warnings
     has_warning = False
     if "$OBJ" in filename_template and not source_obj:
@@ -231,7 +239,7 @@ def preview_export_name(context, settings):
         if not collection or collection.name == "Scene Collection":
             has_warning = True
 
-    return _fallback_to_default(resolved, "default") + ext, has_warning, idx
+    return _fallback_to_default(resolved, default_name) + ext, has_warning, idx
 
 
 def resolve_base_dir(settings, prefs):

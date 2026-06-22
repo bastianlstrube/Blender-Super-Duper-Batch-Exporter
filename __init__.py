@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Super Duper Batch Exporter",
     "author": "Bastian L Strube, forked from Mrtripie",
-    "version": (2, 8, 2),
+    "version": (2, 9, 0),
     "blender": (4, 2, 0),
     "category": "Import-Export",
     "location": "Set in preferences below. Default: Top Bar (After File, Edit, ...Help)",
@@ -107,6 +107,13 @@ def _migrate_all_scenes():
                 core = old_prefix + "$OBJ"
             settings["filename"] = core + old_suffix
             print(f"[Batch Export] Migrated naming to unified 'filename' for scene '{scene.name}'.")
+
+        # Stamp the current addon version so future loads can tell which version
+        # last wrote this file. Only write when it actually changed, to avoid
+        # needlessly flagging the .blend as modified on every load.
+        current_version = tuple(bl_info["version"])
+        if tuple(settings.get("addon_version", (0, 0, 0))) != current_version:
+            settings.addon_version = current_version
 
 
 module_names = [
