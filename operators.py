@@ -486,6 +486,7 @@ class EXPORT_MESH_OT_batch(Operator):
 
 
 class BATCH_EXPORT_OT_cycle_preview(Operator):
+    """Cycle the preview filename through the list of valid export objects found"""
     bl_idname = "batch_export.cycle_preview"
     bl_label = "Cycle Preview"
 
@@ -498,7 +499,7 @@ class BATCH_EXPORT_OT_cycle_preview(Operator):
 class BATCH_EXPORT_OT_list_add(Operator):
     """Add selected objects to the export list"""
     bl_idname = "batch_export.list_add"
-    bl_label = "Add Selected to Export List"
+    bl_label = "Add Selected"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -523,7 +524,7 @@ class BATCH_EXPORT_OT_list_add(Operator):
         return {'FINISHED'}
 
 class BATCH_EXPORT_OT_list_add_collection(Operator):
-    """Add active collection to the export list"""
+    """Add active collection to the export list, only supports 1 active collection at a time :( sry"""
     bl_idname = "batch_export.list_add_collection"
     bl_label = "Add Collection"
     bl_options = {'REGISTER', 'UNDO'}
