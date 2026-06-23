@@ -12,6 +12,36 @@ class EXPORT_MESH_OT_batch(Operator):
     """Export many objects to separate files all at once."""
     bl_idname = "export_mesh.batch"
     bl_label = "Batch Export"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # Internal property to pass confirmation status from invoke to execute
+    dir_confirmed: bpy.props.BoolProperty(options={'HIDDEN'}, default=False)
+
+    def invoke(self, context, event):
+        settings = context.scene.batch_export
+        prefs = context.preferences.addons[__package__].preferences
+
+        try:
+            base_dir = utils.resolve_base_dir(settings, prefs)
+        except ValueError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+
+        # If directory doesn't exist and user hasn't allowed auto-creation
+        if not base_dir.is_dir() and not prefs.auto_create_dir:
+            # Check if this invocation is already the user clicking "OK" in the popup
+            if self.dir_confirmed:
+                return self.execute(context)
+            
+            # Reset flag and call the native confirmation popup
+            self.dir_confirmed = True
+            return context.window_manager.invoke_confirm(
+                self, 
+                event, 
+                message=f"Export folder doesn't exist. Create it? \n{base_dir}"
+            )
+
+        return self.execute(context)
 
     def execute(self, context):
         self.file_count = 0
@@ -27,9 +57,14 @@ class EXPORT_MESH_OT_batch(Operator):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
 
+        # Ensure the directory exists (handles either auto-create preference OR post-prompt confirmation)
         if not base_dir.is_dir():
-            self.report({'ERROR'}, f"Export directory does not exist:\n{base_dir}")
-            return {'CANCELLED'}
+            try:
+                utils.ensure_directory_exists(base_dir)
+                self.report({'INFO'}, f"Created export directory: {base_dir}")
+            except Exception as e:
+                self.report({'ERROR'}, f"Failed to create directory:\n{e}")
+                return {'CANCELLED'}
 
         filtered_objects = utils.get_filtered_objects(context, settings)
         if not filtered_objects:

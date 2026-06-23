@@ -28,10 +28,16 @@ class BatchExportPreferences(AddonPreferences):
         description="Make a copy of exported files in a secondary directory",
         default=False,
     )
+    auto_create_dir: BoolProperty(
+        name="Disable Prompt to Create Export Folders",
+        description="Automatically create the export directory if it doesn't exist, without prompting",
+        default=False,
+    )
     def draw(self, context):
         self.layout.prop(self, "addon_location")
         self.layout.prop(self, "project_dir")
         self.layout.prop(self, "copy_on_export")
+        self.layout.prop(self, "auto_create_dir")
 
 registry = [
     BatchExportPreferences,

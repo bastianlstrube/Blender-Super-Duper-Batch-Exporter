@@ -133,6 +133,14 @@ def _fallback_to_default(resolved, default_name):
     
     # Normalize path formatting to forward slashes
     normalized = resolved.replace("\\", "/")
+
+    # Strip accidental leading slashes caused by unresolved tokens
+    while normalized.startswith("/"):
+        normalized = normalized[1:]
+        
+    # If stripping left us with nothing, use the default name
+    if not normalized.strip():
+        return bpy.path.clean_name(default_name)
     
     # If the path ends with a slash or the filename token is empty/whitespace
     if normalized.endswith("/") or not normalized.split("/")[-1].strip():
@@ -272,6 +280,11 @@ def resolve_base_dir(settings, prefs):
             "or set a Project Directory in Preferences."
         )
     return Path(bpy.path.abspath(settings.directory)).resolve()
+
+def ensure_directory_exists(path: Path):
+    """Safely creates the directory tree if it doesn't exist."""
+    if not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
 
 # A Dictionary of operator_name: [list of preset EnumProperty item tuples].
 # Blender's doc warns that not keeping reference to enum props array can
