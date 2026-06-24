@@ -254,16 +254,19 @@ class EXPORT_MESH_OT_batch(Operator):
                 obj.rotation_euler = rot_e
                 obj.rotation_quaternion = rot_q
                 obj.scale = scl
+                
                 if temp is None or temp == original:
                     continue
+                
                 try:
-                    if isinstance(temp, bpy.types.Mesh): bpy.data.meshes.remove(temp)
-                    elif isinstance(temp, bpy.types.Curve): bpy.data.curves.remove(temp)
-                    elif isinstance(temp, bpy.types.MetaBall): bpy.data.metaballs.remove(temp)
-                    elif isinstance(temp, bpy.types.Lattice): bpy.data.lattices.remove(temp)
-                    elif isinstance(temp, bpy.types.Armature): bpy.data.armatures.remove(temp)
+                    if temp.users == 0:
+                        if isinstance(temp, bpy.types.Mesh): bpy.data.meshes.remove(temp)
+                        elif isinstance(temp, bpy.types.Curve): bpy.data.curves.remove(temp)
+                        elif isinstance(temp, bpy.types.MetaBall): bpy.data.metaballs.remove(temp)
+                        elif isinstance(temp, bpy.types.Lattice): bpy.data.lattices.remove(temp)
+                        elif isinstance(temp, bpy.types.Armature): bpy.data.armatures.remove(temp)
                 except Exception as e:
-                    print(f"Could not free temporary data for {obj.name}: {e}")
+                        print(f"Could not free temporary data for {obj.name}: {e}")
 
     @contextmanager
     def _managed_lods(self, settings, obj):
@@ -467,7 +470,9 @@ class EXPORT_MESH_OT_batch(Operator):
         full_path = str(fp_no_ext) + '.fbx'
         options = utils.load_operator_preset('export_scene.fbx', settings.fbx_preset)
         options.update({"filepath": full_path, "use_selection": True, "use_mesh_modifiers": settings.apply_mods})
-        bpy.ops.export_scene.fbx(**options)
+
+        bpy.context.view_layer.update()
+        bpy.ops.export_scene.fbx('EXEC_DEFAULT', **options)
         return full_path
 
     def _export_gltf(self, settings, fp_no_ext):
@@ -475,38 +480,50 @@ class EXPORT_MESH_OT_batch(Operator):
         full_path = str(fp_no_ext) + ext
         options = utils.load_operator_preset('export_scene.gltf', settings.gltf_preset)
         options.update({"filepath": str(fp_no_ext), "export_format": settings.gltf_format, "use_selection": True, "export_apply": settings.apply_mods})
-        bpy.ops.export_scene.gltf(**options)
+        
+        bpy.context.view_layer.update()
+        bpy.ops.export_scene.gltf('EXEC_DEFAULT', **options)
         return full_path
 
     def _export_alembic(self, settings, fp_no_ext):
         full_path = str(fp_no_ext) + '.abc'
         options = utils.load_operator_preset('wm.alembic_export', settings.abc_preset)
         options.update({"filepath": full_path, "selected": True, "start": settings.frame_start, "end": settings.frame_end})
-        bpy.ops.wm.alembic_export('EXEC_REGION_WIN', **options)
+        
+        bpy.context.view_layer.update()
+        bpy.ops.wm.alembic_export('EXEC_DEFAULT', **options)
         return full_path
 
     def _export_usd(self, settings, fp_no_ext):
         full_path = str(fp_no_ext) + settings.usd_format
         options = utils.load_operator_preset('wm.usd_export', settings.usd_preset)
         options.update({"filepath": full_path, "selected_objects_only": True, "export_animation": settings.usd_export_animation})
-        bpy.ops.wm.usd_export(**options)
+        
+        bpy.context.view_layer.update()
+        bpy.ops.wm.usd_export('EXEC_DEFAULT', **options)
         return full_path
 
     def _export_obj(self, settings, fp_no_ext):
         full_path = str(fp_no_ext) + '.obj'
         options = utils.load_operator_preset('wm.obj_export', settings.obj_preset)
         options.update({"filepath": full_path, "export_selected_objects": True, "apply_modifiers": settings.apply_mods})
-        bpy.ops.wm.obj_export(**options)
+        
+        bpy.context.view_layer.update()
+        bpy.ops.wm.obj_export('EXEC_DEFAULT', **options)
         return full_path
 
     def _export_ply(self, settings, fp_no_ext):
         full_path = str(fp_no_ext) + '.ply'
-        bpy.ops.wm.ply_export(filepath=full_path, ascii_format=settings.ply_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
+        
+        bpy.context.view_layer.update()
+        bpy.ops.wm.ply_export('EXEC_DEFAULT', filepath=full_path, ascii_format=settings.ply_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
         return full_path
 
     def _export_stl(self, settings, fp_no_ext):
         full_path = str(fp_no_ext) + '.stl'
-        bpy.ops.wm.stl_export(filepath=full_path, ascii_format=settings.stl_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
+        
+        bpy.context.view_layer.update()
+        bpy.ops.wm.stl_export('EXEC_DEFAULT', filepath=full_path, ascii_format=settings.stl_ascii, export_selected_objects=True, apply_modifiers=settings.apply_mods)
         return full_path
 
     def _export_svg(self, settings, fp_no_ext):

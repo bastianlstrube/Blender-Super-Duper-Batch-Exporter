@@ -321,17 +321,17 @@ def load_operator_preset(operator, preset):
         fp = "".join([d, "/", preset, ".py"])
         if os.path.isfile(fp):  # Found the preset file
             print("Using preset " + fp)
-            file = open(fp, 'r')
-            for line in file.readlines():
-                # This assumes formatting of these files remains exactly the same
-                if line.startswith("op."):
-                    line = line.removeprefix("op.")
-                    split = line.split(" = ")
-                    key = split[0]
-                    value = split[1]
-                    options[key] = eval(value)
-            file.close()
-            return options
+            # Use a context manager with an explicit encoding format
+            with open(fp, 'r', encoding='utf-8') as file:
+                for line in file:  # Python efficiently iterates over the file object directly
+                    if line.startswith("op."):
+                        line = line.removeprefix("op.")
+                        split = line.split(" = ")
+                        key = split[0]
+                        value = split[1]
+                        options[key] = eval(value)
+                    
+        return options
     # If it didn't find the preset, use empty options
     # (the preset option should look blank if the file doesn't exist anyway)
     return options

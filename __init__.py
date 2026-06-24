@@ -205,14 +205,16 @@ def unregister():
         bpy.app.handlers.load_post.remove(migrate_legacy_batch_export_modes)
 
 def is_dark_theme():
-    """Calculates the luminance of the UI to determine if the theme is dark."""
-    theme = bpy.context.preferences.themes[0]
-
-    # Sample "Themes > User Interface > Tool > Inner"
-    bg_color = theme.user_interface.wcol_tool.inner
-    
-    luminance = (0.299 * bg_color[0]) + (0.587 * bg_color[1]) + (0.114 * bg_color[2])
-    return luminance < 0.35
+    try:
+        prefs = bpy.context.preferences
+        if not prefs or not prefs.themes:
+            return True # Default safe fallback
+        theme = prefs.themes[0]
+        bg_color = theme.user_interface.wcol_tool.inner
+        luminance = (0.299 * bg_color[0]) + (0.587 * bg_color[1]) + (0.114 * bg_color[2])
+        return luminance < 0.35
+    except Exception:
+        return True
 
 def get_icon_id(icon_name):
     """Helper function to get icon ID, switching based on theme luminance"""

@@ -47,10 +47,7 @@ def draw_settings(self, context):
     settings = context.scene.batch_export
     self.layout.operator_context = 'INVOKE_DEFAULT'
 
-    copies = False
-    name = __package__
-    if name in context.preferences.addons:
-        copies = context.preferences.addons[name].preferences.copy_on_export
+    prefs = context.preferences.addons[__package__].preferences
 
     # Export button + open-folder shortcut
     icon_id = get_icon_id("batchexport_icon")
@@ -67,10 +64,11 @@ def draw_settings(self, context):
     #col.use_property_split = True
 
     col.prop(settings, 'directory')
-    if copies and settings.copy_on_export:
-        col.prop(settings, 'copy_directory')
-    if copies:
+    # File copy settings
+    if prefs.copy_on_export:
         col.prop(settings, 'copy_on_export')
+        if settings.copy_on_export:
+            col.prop(settings, 'copy_directory')
     
     preview, has_warning, idx = utils.preview_export_name(context, settings)
     
