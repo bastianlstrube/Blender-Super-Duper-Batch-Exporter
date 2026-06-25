@@ -266,7 +266,7 @@ class EXPORT_MESH_OT_batch(Operator):
                         elif isinstance(temp, bpy.types.Lattice): bpy.data.lattices.remove(temp)
                         elif isinstance(temp, bpy.types.Armature): bpy.data.armatures.remove(temp)
                 except Exception as e:
-                        print(f"Could not free temporary data for {obj.name}: {e}")
+                    print(f"Could not free temporary data for {obj.name}: {e}")
 
     @contextmanager
     def _managed_lods(self, settings, obj):

@@ -330,8 +330,7 @@ def load_operator_preset(operator, preset):
                         key = split[0]
                         value = split[1]
                         options[key] = eval(value)
-                    
-        return options
+            return options
     # If it didn't find the preset, use empty options
     # (the preset option should look blank if the file doesn't exist anyway)
     return options
