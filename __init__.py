@@ -2,10 +2,16 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# Single source of truth for the version. `bl_info` is not preserved in the
+# module namespace when this add-on is loaded through Blender's extension system
+# (metadata comes from blender_manifest.toml instead), so the @persistent load
+# handler below cannot read `bl_info` at runtime. Reference this constant instead.
+ADDON_VERSION = (2, 9, 0)
+
 bl_info = {
     "name": "Super Duper Batch Exporter",
     "author": "Bastian L Strube, forked from Mrtripie",
-    "version": (2, 9, 0),
+    "version": ADDON_VERSION,
     "blender": (4, 2, 0),
     "category": "Import-Export",
     "location": "Set in preferences below. Default: Top Bar (After File, Edit, ...Help)",
@@ -111,7 +117,7 @@ def _migrate_all_scenes():
         # Stamp the current addon version so future loads can tell which version
         # last wrote this file. Only write when it actually changed, to avoid
         # needlessly flagging the .blend as modified on every load.
-        current_version = tuple(bl_info["version"])
+        current_version = ADDON_VERSION
         if tuple(settings.get("addon_version", (0, 0, 0))) != current_version:
             settings.addon_version = current_version
 
