@@ -166,6 +166,16 @@ def get_export_extension(settings):
         'PDF': '.pdf',
     }.get(fmt, '')
 
+def get_implicitly_bundled_armatures(objs, settings):
+    """Armatures that 'Include Armature' bundles into each skinned mesh's file
+    (and therefore skips as standalone export jobs)."""
+    if (settings.mode != 'OBJECTS' or not settings.include_armature
+            or settings.file_format not in {'FBX', 'glTF', 'USD'}):
+        return set()
+    return {obj.find_armature() for obj in objs
+            if obj.type == 'MESH' and obj.find_armature()}
+
+
 def get_unique_preview_paths(context, settings):
     """Returns a list of all unique file paths that would be generated."""
     # Assuming you already have a way to generate jobs (like in your operator)
@@ -173,7 +183,9 @@ def get_unique_preview_paths(context, settings):
     # Here is a simplified version:
     paths = []
     objs = get_filtered_objects(context, settings)
-    
+    bundled_armatures = get_implicitly_bundled_armatures(objs, settings)
+    objs = [obj for obj in objs if obj not in bundled_armatures]
+
     for obj in objs:
         # Replicate your naming logic
         coll = obj.users_collection[0] if obj.users_collection else None

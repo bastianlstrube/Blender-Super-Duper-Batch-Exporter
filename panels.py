@@ -39,6 +39,14 @@ class BATCH_EXPORT_MT_token_menu(Menu):
             ).token = token
 
 
+def _indented_prop(layout, settings, prop_name, **kwargs):
+    """Draw a property inset one level, used for the checkbox options."""
+    row = layout.row()
+    row.separator()
+    row.prop(settings, prop_name, **kwargs)
+    return row
+
+
 # Draws the .blend file specific settings used in the
 # Popover panel or Side Panel panel
 def draw_settings(self, context):
@@ -66,9 +74,12 @@ def draw_settings(self, context):
     col.prop(settings, 'directory')
     # File copy settings
     if prefs.copy_on_export:
-        col.prop(settings, 'copy_on_export')
+        _indented_prop(col, settings, 'copy_on_export')
         if settings.copy_on_export:
-            col.prop(settings, 'copy_directory')
+            row = col.row()
+            row.separator()
+            row.separator()
+            row.prop(settings, 'copy_directory')
     
     preview, has_warning, idx = utils.preview_export_name(context, settings)
     
@@ -109,6 +120,8 @@ def draw_settings(self, context):
     col.prop(settings, 'file_format')
     col.prop(settings, 'mode')
     col.prop(settings, 'limit')
+    if settings.mode == 'OBJECTS' and settings.file_format in {'FBX', 'glTF', 'USD'}:
+        _indented_prop(col, settings, 'include_armature')
     if settings.limit == 'LIST':
         list_row = self.layout.row()
         list_row.template_list(
@@ -163,23 +176,23 @@ def draw_settings(self, context):
     elif settings.file_format == 'USD':
         col.prop(settings, 'usd_format')
         col.prop(settings, 'usd_preset_enum')
-        col.prop(settings, 'usd_export_animation')
+        _indented_prop(col, settings, 'usd_export_animation')
     elif settings.file_format == 'OBJ':
         col.prop(settings, 'obj_preset_enum')
-        self.layout.prop(settings, 'apply_mods')
+        _indented_prop(self.layout, settings, 'apply_mods')
     elif settings.file_format == 'PLY':
-        col.prop(settings, 'ply_ascii')
-        self.layout.prop(settings, 'apply_mods')
+        _indented_prop(col, settings, 'ply_ascii')
+        _indented_prop(self.layout, settings, 'apply_mods')
     elif settings.file_format == 'STL':
-        col.prop(settings, 'stl_ascii')
-        self.layout.prop(settings, 'apply_mods')
+        _indented_prop(col, settings, 'stl_ascii')
+        _indented_prop(self.layout, settings, 'apply_mods')
     elif settings.file_format == 'FBX':
         col.prop(settings, 'fbx_preset_enum')
-        self.layout.prop(settings, 'apply_mods')
+        _indented_prop(self.layout, settings, 'apply_mods')
     elif settings.file_format == 'glTF':
         col.prop(settings, 'gltf_format')
         col.prop(settings, 'gltf_preset_enum')
-        self.layout.prop(settings, 'apply_mods')
+        _indented_prop(self.layout, settings, 'apply_mods')
     self.layout.use_property_split = False
     self.layout.separator()
 
@@ -194,34 +207,36 @@ def draw_settings(self, context):
     header.label(text="Transform on Export:")
     if body is not None:
         col = body.column(align=True)
-        col.prop(settings, 'apply_location')
-        col.prop(settings, 'apply_rotation')
-        col.prop(settings, 'apply_scale')
+        _indented_prop(col, settings, 'apply_location')
+        _indented_prop(col, settings, 'apply_rotation')
+        _indented_prop(col, settings, 'apply_scale')
         if settings.apply_scale:
             row = col.row()
+            row.separator()
             row.separator()
             row.prop(settings, 'corrective_flip_normals')
 
         col = body.column(align=True)
-        col.prop(settings, 'set_location')
+        _indented_prop(col, settings, 'set_location')
         if settings.set_location:
-            col.prop(settings, 'location', text="")
-        col.prop(settings, 'set_rotation')
+            _indented_prop(col, settings, 'location', text="")
+        _indented_prop(col, settings, 'set_rotation')
         if settings.set_rotation:
-            col.prop(settings, 'rotation', text="")
-        col.prop(settings, 'set_scale')
+            _indented_prop(col, settings, 'rotation', text="")
+        _indented_prop(col, settings, 'set_scale')
         if settings.set_scale:
-            col.prop(settings, 'scale', text="")
+            _indented_prop(col, settings, 'scale', text="")
 
     # LOD Creation
     if settings.file_format in {'FBX', 'glTF'}:
-        col = self.layout.column(align=True, heading="Level of Detail:")
-        col.prop(settings, 'create_lod')
+        col = self.layout.column(align=True)
+        col.label(text="Level of Detail:")
+        _indented_prop(col, settings, 'create_lod')
         if settings.create_lod:
-            col.prop(settings, 'lod_count')
+            _indented_prop(col, settings, 'lod_count')
             for count in range(settings.lod_count):
                 prop_name = f'lod{count+1}_ratio'
-                col.prop(settings, prop_name)
+                _indented_prop(col, settings, prop_name)
 
 
 # Draws the button and popover dropdown button used in the

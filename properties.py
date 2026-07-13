@@ -192,6 +192,16 @@ class BatchExportSettings(PropertyGroup):
         items=get_mode_items,
         update=update_mode_identity_token,
     )
+    include_armature: BoolProperty(
+        name="Include Armature",
+        description=(
+            "Export each mesh together with the armature that deforms it\n"
+            "(found via Armature modifier or armature parenting), so skinning\n"
+            "(vertex groups / weights) is preserved.\n"
+            "Armatures that deform an exported mesh are not exported as separate files"
+        ),
+        default=False,
+    )
     limit: EnumProperty(
         name="Limit to",
         description="How to limit which objects are exported",

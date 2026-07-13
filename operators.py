@@ -342,8 +342,22 @@ class EXPORT_MESH_OT_batch(Operator):
         object_set = set(objects)
 
         if mode == 'OBJECTS':
+            # Armatures bundled by "Include Armature" ride along inside each
+            # skinned mesh's file instead of getting their own export job.
+            deforming_armatures = utils.get_implicitly_bundled_armatures(objects, settings)
             for obj in objects:
-                yield self._build_job(settings, obj.name, [obj], base_dir, source_obj=obj)
+                if obj in deforming_armatures:
+                    continue
+                job_objects = [obj]
+                implicit_armatures = set()
+                if deforming_armatures and obj.type == 'MESH':
+                    arm = obj.find_armature()
+                    if arm:
+                        job_objects.append(arm)
+                        implicit_armatures.add(arm)
+                job = self._build_job(settings, obj.name, job_objects, base_dir, source_obj=obj)
+                job['implicit_armatures'] = implicit_armatures
+                yield job
         elif mode == 'PARENT_OBJECTS':
             for obj in objects:
                 if obj.parent in object_set: continue
@@ -382,8 +396,13 @@ class EXPORT_MESH_OT_batch(Operator):
         if not job['objects']: return
         bpy.ops.object.select_all(action='DESELECT')
         try:
+            # Applying rotation/scale to an armature changes bone rest orientations
+            # and distorts the skinned result, so armatures pulled in implicitly by
+            # "Include Armature" are excluded from transform_apply.
+            implicit_armatures = job.get('implicit_armatures') or set()
+            apply_objects = [o for o in job['objects'] if o not in implicit_armatures]
             with self._temporary_visibility(job['objects']):
-                with self._temporary_apply_transform(settings, job['objects']):
+                with self._temporary_apply_transform(settings, apply_objects):
                     with self._temporary_transform(settings, job['objects']):
                         is_lod_job = (settings.create_lod and settings.file_format in {'FBX', 'glTF'} and len(job['objects']) == 1 and job['objects'][0].type == 'MESH')
                         if is_lod_job:
