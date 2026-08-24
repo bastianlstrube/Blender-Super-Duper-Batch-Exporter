@@ -71,7 +71,25 @@ def draw_settings(self, context):
     col = self.layout.column(align=True)
     #col.use_property_split = True
 
-    col.prop(settings, 'directory')
+    # Directory row: the 'Use Project Directory' toggle swaps the editable
+    # blend-relative path for a read-only view of the project root.
+    dir_row = col.row(align=True)
+    use_project = settings.use_project_dir
+    if use_project and prefs.project_dir:
+        locked = dir_row.row(align=True)
+        locked.enabled = False
+        locked.prop(prefs, 'project_dir', text="Directory")
+    else:
+        # Toggle on without a project dir set is a dead end - flag it.
+        dir_row.alert = use_project
+        dir_row.prop(settings, 'directory')
+    dir_row.prop(settings, 'use_project_dir', text='', icon='FOLDER_REDIRECT')
+
+    if use_project and not prefs.project_dir:
+        warn = col.row()
+        warn.alert = True
+        warn.label(text="Set a Project Directory in Preferences", icon='ERROR')
+
     # File copy settings
     if prefs.copy_on_export:
         _indented_prop(col, settings, 'copy_on_export')
@@ -80,9 +98,9 @@ def draw_settings(self, context):
             row.separator()
             row.separator()
             row.prop(settings, 'copy_directory')
-    
+
     preview, has_warning, idx = utils.preview_export_name(context, settings)
-    
+
     name_row = col.row(align=True)
     if has_warning:
         name_row.alert = True
@@ -96,7 +114,7 @@ def draw_settings(self, context):
         preview_row.use_property_split = False
         preview_row.active = False  # Standard clean greyed-out look
         preview_row.label(text=preview, icon='RIGHTARROW_THIN')
-        
+
         # Cycle button
         preview_row.operator("batch_export.cycle_preview", text="", icon='FILE_REFRESH')
 

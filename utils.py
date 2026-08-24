@@ -145,8 +145,11 @@ def _fallback_to_default(resolved, default_name):
     # If the path ends with a slash or the filename token is empty/whitespace
     if normalized.endswith("/") or not normalized.split("/")[-1].strip():
         return normalized + bpy.path.clean_name(default_name)
-        
-    return resolved
+
+    # Return the normalized form: a template that kept its leading slashes would
+    # be treated as an absolute path when joined to the export directory, which
+    # silently discards that directory.
+    return normalized
 
 
 def get_export_extension(settings):
@@ -265,31 +268,25 @@ def preview_export_name(context, settings):
 def resolve_base_dir(settings, prefs):
     """
     Calculates the absolute base directory for exports.
-    If a project_dir preference is set, it acts as the root and
-    settings.directory is treated as relative to it.
+    If the 'Use Project Directory' toggle is on, the project_dir preference is
+    the export directory outright and settings.directory is ignored.
     Raises ValueError if the path cannot be resolved (e.g. unsaved .blend
-    with a relative output directory and no project dir set).
+    with a relative output directory, or the toggle on with no project dir set).
     """
-    project_dir_raw = getattr(prefs, 'project_dir', '')
-
-    if project_dir_raw:
-        # Project Directory overrides the .blend file as the relative root.
-        project_root = Path(bpy.path.abspath(project_dir_raw))
-
-        relative_part = settings.directory
-        # Strip Blender's '//' relative prefix so pathlib joins correctly.
-        if relative_part.startswith('//'):
-            relative_part = relative_part[2:]
-        elif relative_part.startswith('\\'):
-            relative_part = relative_part[1:]
-
-        return (project_root / relative_part).resolve()
+    if getattr(settings, 'use_project_dir', False):
+        project_dir_raw = getattr(prefs, 'project_dir', '')
+        if not project_dir_raw:
+            raise ValueError(
+                "'Use Project Directory' is enabled but no Project Directory\n"
+                "is set in the add-on Preferences."
+            )
+        return Path(bpy.path.abspath(project_dir_raw)).resolve()
 
     # Standard Blender behaviour: relative to the .blend file.
     if settings.directory.startswith('//') and not bpy.data.is_saved:
         raise ValueError(
             "Save the .blend file before exporting to a relative directory,\n"
-            "or set a Project Directory in Preferences."
+            "or enable 'Use Project Directory'."
         )
     return Path(bpy.path.abspath(settings.directory)).resolve()
 

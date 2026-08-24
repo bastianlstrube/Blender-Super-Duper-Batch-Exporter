@@ -49,14 +49,14 @@ def _swap_identity_token(name, target):
     # Check and swap only inside the leaf filename component
     if re.search(_IDENTITY_PATTERNS[target], filename_part):
         return name
-        
+
     for token, pattern in _IDENTITY_PATTERNS.items():
         if token == target:
             continue
         if re.search(pattern, filename_part):
             filename_part = re.sub(pattern, lambda m: target, filename_part, count=1)
             return directory_part + filename_part
-            
+
     return name
 
 
@@ -77,6 +77,12 @@ def update_directory_relative(self, context):
     If a Project Directory is set, try to make the export directory
     relative to it automatically when the user picks a folder.
     """
+    # The Directory is only ever blend-relative now; the Project Directory is
+    # selected with the 'use_project_dir' toggle and replaces this path outright,
+    # so rebasing here would corrupt a perfectly good blend-relative path.
+    if not self.use_project_dir:
+        return
+
     addon_name = __package__
     prefs = context.preferences.addons[addon_name].preferences
     if not prefs or not getattr(prefs, 'project_dir', ''):
@@ -141,10 +147,20 @@ class BatchExportSettings(PropertyGroup):
     # File Settings:
     directory: StringProperty(
         name="Directory",
-        description="Folder to place the exported files.\nIf a 'Project Directory' is set in Preferences, this is relative to that.\nOtherwise, '//' is relative to the .blend file.",
+        description="Folder to place the exported files.\n'//' is relative to the .blend file",
         default="//",
         subtype='DIR_PATH',
         update=update_directory_relative,
+        options={'PATH_SUPPORTS_BLEND_RELATIVE'},
+    )
+    use_project_dir: BoolProperty(
+        name="Use Project Directory",
+        description=(
+            "Export to the 'Project Directory' set in the add-on Preferences instead of "
+            "the Directory above.\nThe Directory is kept and restored when switched back off.\n"
+            "Use subdirectories in the file name to organise output below the project root"
+        ),
+        default=False,
     )
     copy_on_export: BoolProperty(
         name="Make Copies",
@@ -212,7 +228,7 @@ class BatchExportSettings(PropertyGroup):
             ("LIST", "List", "Export only objects added to the custom list", 4),
         ],
     )
-    
+
     # List related Properties
     export_list: CollectionProperty(type=ExportObjectItem)
     export_list_index: IntProperty(name="Active Object Index", default=0)
