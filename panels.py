@@ -39,6 +39,15 @@ class BATCH_EXPORT_MT_token_menu(Menu):
             ).token = token
 
 
+# Toggles inside the collapsible "Transform on Export" panel. Used to show a
+# checked/unchecked icon in the panel header so an enabled option isn't hidden
+# when the panel is collapsed.
+_TRANSFORM_TOGGLES = (
+    'apply_location', 'apply_rotation', 'apply_scale',
+    'set_location', 'set_rotation', 'set_scale',
+)
+
+
 def _indented_prop(layout, settings, prop_name, **kwargs):
     """Draw a property inset one level, used for the checkbox options."""
     row = layout.row()
@@ -222,7 +231,11 @@ def draw_settings(self, context):
 
     # Transform (collapsible)
     header, body = self.layout.panel("sdbe_transform_panel", default_closed=True)
-    header.label(text="Transform on Export:")
+    transform_active = any(getattr(settings, name) for name in _TRANSFORM_TOGGLES)
+    header.label(
+        text="Transform on Export:",
+        icon='CHECKBOX_HLT' if transform_active else 'CHECKBOX_DEHLT',
+    )
     if body is not None:
         col = body.column(align=True)
         _indented_prop(col, settings, 'apply_location')
