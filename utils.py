@@ -74,35 +74,55 @@ def get_renderable_objects(scene):
     return renderable
 
 
+def expand_with_children(context, objs):
+    """Adds every descendant of the given objects (Parent Objects mode bundles a
+    parent with its children, so a selected parent has to drag its unselected
+    children into the export set or they silently go missing)."""
+    view_layer_objects = context.view_layer.objects
+    expanded = list(objs)
+    seen = {obj.name for obj in expanded}
+    for obj in objs:
+        for child in obj.children_recursive:
+            if child.name in seen:
+                continue
+            if child.name not in view_layer_objects:
+                continue
+            seen.add(child.name)
+            expanded.append(child)
+    return expanded
+
+
 def get_filtered_objects(context, settings):
     """The objects that would actually be exported under the current Limit / Type filters."""
     limit = settings.limit
-    
+
     if limit == 'SELECTED':
         source = context.selected_objects[:]
+        if settings.mode == 'PARENT_OBJECTS':
+            source = expand_with_children(context, source)
     elif limit == 'VISIBLE':
         source = [obj for obj in context.view_layer.objects if obj.visible_get()]
     elif limit == 'RENDERABLE':
         renderable_names = {obj.name for obj in get_renderable_objects(context.scene)}
         source = [obj for obj in context.view_layer.objects if obj.name in renderable_names]
-        
+
     elif limit == 'LIST':
         # Create a set to handle duplicates automatically
         export_set = set()
-        
+
         # Helper to collect objects recursively
         def add_coll_recursive(coll):
             for obj in coll.objects:
                 export_set.add(obj)
             for child in coll.children:
                 add_coll_recursive(child)
-        
+
         for item in settings.export_list:
             if item.object:
                 export_set.add(item.object)
             if item.collection:
                 add_coll_recursive(item.collection)
-        
+
         # Convert set back to a list to maintain compatibility with the rest of the code
         source = list(export_set)
 
@@ -110,7 +130,10 @@ def get_filtered_objects(context, settings):
         if settings.use_secondary:
             secondary = settings.secondary_limit
             if secondary == 'SELECTED':
-                secondary_objs = set(context.selected_objects)
+                selected = context.selected_objects[:]
+                if settings.mode == 'PARENT_OBJECTS':
+                    selected = expand_with_children(context, selected)
+                secondary_objs = set(selected)
                 source = [obj for obj in source if obj in secondary_objs]
             elif secondary == 'VISIBLE':
                 source = [obj for obj in source if obj.visible_get()]
@@ -130,18 +153,18 @@ def _fallback_to_default(resolved, default_name):
     fall back to the mode's natural (object / collection / .blend) name."""
     if not resolved.strip():
         return bpy.path.clean_name(default_name)
-    
+
     # Normalize path formatting to forward slashes
     normalized = resolved.replace("\\", "/")
 
     # Strip accidental leading slashes caused by unresolved tokens
     while normalized.startswith("/"):
         normalized = normalized[1:]
-        
+
     # If stripping left us with nothing, use the default name
     if not normalized.strip():
         return bpy.path.clean_name(default_name)
-    
+
     # If the path ends with a slash or the filename token is empty/whitespace
     if normalized.endswith("/") or not normalized.split("/")[-1].strip():
         return normalized + bpy.path.clean_name(default_name)
@@ -217,17 +240,17 @@ def preview_export_name(context, settings):
     if not unique_paths:
         return "", False, 0
     idx = settings.preview_index % len(unique_paths)
-    
+
     # 2. Get all objects to help resolve the context for the current path
     objs = get_filtered_objects(context, settings)
     if not objs:
         return "", False, 0
 
-    # 3. Resolve context (source_obj/collection) based on the first object 
+    # 3. Resolve context (source_obj/collection) based on the first object
     # that matches the resolved path (to keep the preview consistent)
     source_obj = None
     collection = None
-    
+
     # Find an object that maps to the currently selected unique path
     for obj in objs:
         coll = obj.users_collection[0] if obj.users_collection else None
@@ -356,10 +379,10 @@ def get_preset_index(operator, preset_name):
 def find_parent_collection(target_coll):
     """
     Finds the immediate parent collection of a given collection within the scene.
-    
+
     Args:
         target_coll (bpy.types.Collection): The collection whose parent is to be found.
-        
+
     Returns:
         bpy.types.Collection or None: The parent collection, or None if no parent
         is found (e.g., orphaned, or already the scene collection).
@@ -368,24 +391,24 @@ def find_parent_collection(target_coll):
     scene_collection = bpy.context.scene.collection
     if target_coll in scene_collection.children.values():
         return scene_collection
-    
+
     # Check all other collections
     for coll in bpy.data.collections:
         if coll != target_coll and target_coll in coll.children.values():
             return coll
-            
+
     return None
 
 
 def get_collection_hierarchy(start_coll_name, top_level_coll_name="Scene Collection"):
     """
     Traces the hierarchy path from a start collection up to a specified top-level collection.
-    
+
     Args:
         start_coll_name (str): The name of the collection to start from.
         top_level_coll_name (str, optional): The name of the target top-level collection.
             Defaults to "Scene Collection".
-            
+
     Returns:
         str or None: Path string showing the collection hierarchy, or None if path not found.
     """
