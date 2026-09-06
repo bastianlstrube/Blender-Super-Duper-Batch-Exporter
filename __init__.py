@@ -6,7 +6,7 @@
 # module namespace when this add-on is loaded through Blender's extension system
 # (metadata comes from blender_manifest.toml instead), so the @persistent load
 # handler below cannot read `bl_info` at runtime. Reference this constant instead.
-ADDON_VERSION = (2, 9, 0)
+ADDON_VERSION = (2, 9, 1)
 
 bl_info = {
     "name": "Super Duper Batch Exporter",
@@ -126,7 +126,7 @@ module_names = [
     "preferences",
     "properties",
     "panels",
-    "operators", 
+    "operators",
 ]
 
 
@@ -171,19 +171,19 @@ def register():
     # icon registration
     global preview_collections
     pcoll = previews.new()
-    preview_collections["main"] = pcoll 
+    preview_collections["main"] = pcoll
     icons_dir = os.path.join(os.path.dirname(__file__), "icons")
-    
+
     # Load both variations
     pcoll.load("batchexport_icon_light", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
     pcoll.load("batchexport_icon_dark", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon_DarkTheme.png"), 'IMAGE')
     #pcoll.load("batchexport_icon", os.path.join(icons_dir, "SuperDuperBatchExporter_Icon.png"), 'IMAGE')
-    
+
     register_unregister_modules(module_names, True)
 
     # Add batch export settings to Scene type
     Scene.batch_export = PointerProperty(type=properties.BatchExportSettings)
-    
+
     # Always append the draw_popover function to menus
     TOPBAR_MT_editor_menus.append(panels.draw_popover)
     VIEW3D_MT_editor_menus.append(panels.draw_popover)
@@ -226,13 +226,13 @@ def get_icon_id(icon_name):
     """Helper function to get icon ID, switching based on theme luminance"""
     if "main" in preview_collections:
         pcoll = preview_collections["main"]
-        
+
         # Determine if we need the light or dark version
         # Note: Your register() loads 'batchexport_icon_light' and 'batchexport_icon_dark'
         suffix = "_dark" if is_dark_theme() else "_light"
         theme_icon_name = f"{icon_name}{suffix}"
-        
+
         if theme_icon_name in pcoll:
             return pcoll[theme_icon_name].icon_id
-            
+
     return 0
