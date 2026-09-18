@@ -64,6 +64,17 @@ def draw_settings(self, context):
     settings = context.scene.batch_export
     self.layout.operator_context = 'INVOKE_DEFAULT'
 
+    # Scene.batch_export is kept on unregister, so it can still point at an
+    # older BatchExportSettings if a previous version's class failed to be
+    # replaced. Drawing against that would raise on every single redraw, so
+    # say what is wrong instead.
+    if not hasattr(settings, 'use_project_dir'):
+        col = self.layout.column(align=True)
+        col.alert = True
+        col.label(text="Add-on not fully registered", icon='ERROR')
+        col.label(text="Restart Blender to finish the update")
+        return
+
     prefs = context.preferences.addons[__package__].preferences
 
     # Export button + open-folder shortcut

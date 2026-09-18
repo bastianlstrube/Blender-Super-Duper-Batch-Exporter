@@ -6,7 +6,7 @@
 # module namespace when this add-on is loaded through Blender's extension system
 # (metadata comes from blender_manifest.toml instead), so the @persistent load
 # handler below cannot read `bl_info` at runtime. Reference this constant instead.
-ADDON_VERSION = (2, 9, 1)
+ADDON_VERSION = (2, 9, 2)
 
 bl_info = {
     "name": "Super Duper Batch Exporter",
@@ -155,6 +155,14 @@ def register_unregister_modules(module_names: list, register: bool):
                         f"Warning: Super Duper Batch Exporter failed to {un}register class: {c.__name__}"
                     )
                     print(e)
+                    # A failed *registration* must not be swallowed: carrying on
+                    # leaves the add-on half-registered - panels drawing against
+                    # a settings class that never registered - which surfaces
+                    # much later as a confusing AttributeError on every redraw.
+                    # Unregister failures stay non-fatal, as a class that isn't
+                    # registered is exactly what we wanted anyway.
+                    if register:
+                        raise
 
         if hasattr(m, 'modules'):
             register_unregister_modules(m.modules, register)
