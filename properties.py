@@ -12,11 +12,11 @@ import re
 # the identity-token swap before the migration has rebuilt the filename itself.
 _suppress_mode_update = False
 
-# 'PATH_SUPPORTS_BLEND_RELATIVE' was only added in Blender 4.4. On 4.2 LTS it is
-# an unknown enum item, and passing it makes register_class(BatchExportSettings)
+# 'PATH_SUPPORTS_BLEND_RELATIVE' was only added in Blender 4.5. On 4.4 and older
+# it is an unknown enum item, and passing it makes register_class(BatchExportSettings)
 # fail - which leaves the add-on half-registered and the panels drawing against
 # an older settings class. Only ask for it where it exists.
-_PATH_OPTS = {'PATH_SUPPORTS_BLEND_RELATIVE'} if bpy.app.version >= (4, 4, 0) else set()
+_PATH_OPTS = {'PATH_SUPPORTS_BLEND_RELATIVE'} if bpy.app.version >= (4, 5, 0) else set()
 
 # Which identity token represents the "thing being named" in each mode.
 _MODE_IDENTITY = {

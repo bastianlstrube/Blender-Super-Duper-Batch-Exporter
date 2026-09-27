@@ -6,7 +6,7 @@
 # module namespace when this add-on is loaded through Blender's extension system
 # (metadata comes from blender_manifest.toml instead), so the @persistent load
 # handler below cannot read `bl_info` at runtime. Reference this constant instead.
-ADDON_VERSION = (2, 9, 2)
+ADDON_VERSION = (2, 9, 3)
 
 bl_info = {
     "name": "Super Duper Batch Exporter",
